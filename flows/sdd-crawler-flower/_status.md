@@ -2,11 +2,11 @@
 
 ## Current Phase
 
-SPECIFICATIONS
+IMPLEMENTATION
 
 ## Phase Status
 
-DRAFTING
+COMPLETE
 
 ## Last Updated
 
@@ -14,70 +14,83 @@ DRAFTING
 
 ## Blockers
 
-- None - requirements approved, proceeding to specs
+- None - implementation complete, pending integration testing
 
 ## Progress
 
 - [x] Requirements drafted (initial analysis complete)
 - [x] Requirements approved
-- [ ] Specifications drafted
-- [ ] Specifications approved
-- [ ] Plan drafted
-- [ ] Plan approved
-- [ ] Implementation started
-- [ ] Implementation complete
+- [x] Specifications drafted
+- [x] Specifications approved
+- [x] Plan drafted
+- [x] Plan approved
+- [x] Implementation started
+- [x] Implementation complete (pending integration testing)
 
 ## Context Notes
 
 Key decisions and context for resuming:
 
-- **Purpose**: This SDD flow captures Flower monitoring requirements that were NOT in the main `sdd-crawler` spec
-- **Legacy Source**: Analysis of `/legacy/legacy-celery/` (flower==2.0.1 in requirements.txt, dev_run_flower.sh)
+- **Purpose**: Flower monitoring for Celery-based crawler deployments
+- **Legacy Source**: Analysis of `/legacy/legacy-celery/` (flower==2.0.1 in requirements.txt)
 - **Deployment Mode**: Flower is **Celery-mode only** - not needed for SQLite standalone mode
-- **Core Value**: Real-time visibility into tasks, workers, queue depth, and performance metrics
-- **Authentication**: Must support Basic Auth (minimum) and OAuth (preferred)
+- **Authentication**: Basic Auth for MVP, OAuth (GitHub) optional
 - **Prometheus**: Optional but recommended for Grafana integration
+- **Port Exposure**: Internal only (reverse proxy required in production)
 
-### Flower Features to Support:
+### Architecture Decisions:
 
-1. **Real-Time Monitoring** - Live task progress and worker status
-2. **Task Administration** - Retry failed tasks, revoke stuck tasks
-3. **Worker Dashboard** - Worker health, concurrency, uptime
-4. **Performance Analytics** - Success rates, runtime distribution, throughput
-5. **Prometheus Export** - Metrics endpoint for external monitoring
-6. **Secure Access** - HTTP Basic Auth and OAuth (Google/GitHub/GitLab/Okta)
-7. **Docker Integration** - Flower as separate container in docker-compose
+1. **Flower Service**: Separate container connecting to same Redis broker as workers
+2. **Celery Events**: Workers must emit events (`worker_send_task_events=True`)
+3. **Docker Compose**: Flower + Prometheus + Grafana as optional monitoring stack
+4. **Reverse Proxy**: nginx with HTTPS, WebSocket support for real-time updates
+5. **Security**: HTTPS required in production, session timeout 30 minutes
 
-### Legacy Components Analyzed:
+### Implementation Complete:
 
-- `requirements.txt`: Flower 2.0.1 dependency
-- `dev_run_flower.sh`: Development launcher script (needs analysis)
-- `celery_app.py`: Celery app configuration (must enable events for Flower)
+**Files Modified:**
+- `celery_app.py` - Added Flower event configuration
+- `dev_run_celery.sh` - Added --send-events flag
+- `README.md` - Comprehensive documentation
 
-### Celery Event Requirements:
+**Files Created:**
+- `docker-compose.yml` - Redis + Workers + Flower
+- `docker-compose.monitoring.yml` - Prometheus + Grafana
+- `Dockerfile` - Worker image
+- `.dockerignore` - Build exclusions
+- `.env.example` - Environment template
+- `prometheus/prometheus.yml` - Metrics scrape config
+- `grafana/datasources/prometheus.yml` - Datasource
+- `grafana/dashboards/dashboards.yml` - Dashboard provisioning
+- `grafana/dashboards/flower-overview.json` - 8-panel dashboard
+- `nginx/flower.conf` - Reverse proxy config
 
-```python
-app.conf.update(
-    worker_send_task_events=True,   # Required for Flower
-    task_send_sent_events=True,     # Required for Flower
-)
-```
+### Open Questions (Resolved):
 
-## Open Questions (Need Resolution)
-
-1. **Q1 - Authentication**: Basic Auth, OAuth, or both?
-2. **Q2 - OAuth Provider**: Google, GitHub, GitLab, or Okta?
-3. **Q3 - Port Exposure**: Public (5555) or internal (via reverse proxy)?
-4. **Q4 - Prometheus**: Required for MVP or optional add-on?
-5. **Q5 - Custom Views**: Need crawler-specific tabs/metrics?
-6. **Q6 - Alerting**: Flower sends alerts or just displays metrics?
-7. **Q7 - Persistence**: How long to retain task history in memory?
+| Question | Decision |
+|----------|----------|
+| **Q1 - Authentication** | Basic Auth for MVP, OAuth optional |
+| **Q2 - OAuth Provider** | GitHub (most common for self-hosted) |
+| **Q3 - Port Exposure** | Internal only (reverse proxy in prod) |
+| **Q4 - Prometheus** | Optional but recommended |
+| **Q5 - Custom Views** | Use Flower default views |
+| **Q6 - Alerting** | Via Prometheus/Grafana, not Flower |
+| **Q7 - Persistence** | In-memory (session-based) |
 
 ## Next Actions
 
-1. **User reviews requirements** - Confirm scope and user stories
-2. **Resolve open questions** - Q1-Q7 need answers before specs
-3. **Move to SPECIFICATIONS phase** - Design Flower architecture
+1. **Integration Testing** - Start stack and verify all components
+2. **Test Commands:**
+   ```bash
+   cd legacy/legacy-celery
+   docker-compose up -d
+   # Access http://localhost:5555/flower (login: flower/flower_password)
+   ```
+3. **Verify:**
+   - Flower shows workers
+   - Tasks visible in real-time
+   - Prometheus scraping metrics
+   - Grafana dashboard populated
 
 ## Fork History
 

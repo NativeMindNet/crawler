@@ -1,0 +1,80 @@
+version: '3.8'
+
+# -----------------------------------------------------------------------------------------
+#   Docker Compose: Monitoring Stack (Prometheus + Grafana)
+# -----------------------------------------------------------------------------------------
+#   This composition adds monitoring to the base Celery stack:
+#   - Prometheus: Metrics scraping and storage
+#   - Grafana: Custom dashboards and alerting
+#
+#   Usage:
+#   - Start with base stack: docker-compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+#   - Access Prometheus: http://localhost:9090
+#   - Access Grafana: http://localhost:3000 (login: admin/grafana_password)
+#
+#   Ports:
+#   - 9090: Prometheus
+#   - 3000: Grafana
+# -----------------------------------------------------------------------------------------
+
+services:
+  # Prometheus Metrics Server
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: celery-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    depends_on:
+      - flower
+    networks:
+      - celery-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Grafana Dashboards
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: celery-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=grafana_password
+      - GF_INSTALL_PLUGINS=
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+    depends_on:
+      - prometheus
+    networks:
+      - celery-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  celery-network:
+    external: true
+    name: legacy-legacy-celery_celery-network
+
+volumes:
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local

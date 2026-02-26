@@ -1,0 +1,112 @@
+version: '3.8'
+
+# -----------------------------------------------------------------------------------------
+#   Docker Compose: Celery Cluster with Flower Monitoring
+# -----------------------------------------------------------------------------------------
+#   This composition deploys:
+#   - Redis: Message broker for Celery
+#   - Workers: Celery workers (scalable)
+#   - Flower: Real-time monitoring dashboard
+#
+#   Usage:
+#   - Start: docker-compose up -d
+#   - Scale workers: docker-compose up -d --scale worker=5
+#   - View logs: docker-compose logs -f flower
+#   - Access Flower: http://localhost:5555 (login: flower/flower_password)
+#
+#   Ports:
+#   - 6379: Redis broker
+#   - 5555: Flower dashboard
+#
+#   For production with Prometheus + Grafana, also use:
+#   - docker-compose -f docker-compose.monitoring.yml up -d
+# -----------------------------------------------------------------------------------------
+
+services:
+  # Redis Broker
+  redis:
+    image: redis:7-alpine
+    container_name: celery-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - celery-network
+
+  # Celery Workers
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: celery-worker
+    command: >
+      celery -A celery_app worker
+      --loglevel=info
+      --concurrency=4
+      --prefetch-multiplier=1
+      --send-events
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - TZ=Europe/Moscow
+    volumes:
+      - ./platforms:/app/platforms
+      - ./data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - celery-network
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # Flower Monitoring Dashboard
+  flower:
+    image: mher/flower:2.0.1
+    container_name: celery-flower
+    command: >
+      flower
+      --app=celery_app
+      --broker=redis://redis:6379/0
+      --port=5555
+      --basic_auth=flower:flower_password
+      --url_prefix=/flower
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_APP=celery_app
+      - FLOWER_BASIC_AUTH=flower:flower_password
+      - TZ=Europe/Moscow
+    depends_on:
+      - redis
+      - worker
+    networks:
+      - celery-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5555/flower/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  celery-network:
+    driver: bridge
+
+volumes:
+  redis_data:
+    driver: local

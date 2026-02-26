@@ -3,7 +3,7 @@
 > **SDD Flow Status Page**
 > See: [sdd.md](../sdd.md) for flow reference
 
-**Current Phase:** REQUIREMENTS
+**Current Phase:** IMPLEMENTATION (in progress)
 **Last Updated:** 2026-02-26
 **Version:** 1.0
 
@@ -32,8 +32,9 @@
 - [x] Specifications drafted (v1.0) - Architecture, components, data models
 - [x] Specifications approved
 - [x] Plan drafted (v1.0) - 12 phases, 70+ tasks
-- [ ] Plan approved ← **CURRENT**
-- [ ] Implementation started
+- [x] Plan approved
+- [x] README.md created
+- [ ] Implementation started ← **CURRENT**
 - [ ] Implementation complete
 
 ---
@@ -65,6 +66,7 @@ New session: Read this file first, then `01-requirements.md` for detailed requir
 
 ## Next Steps
 
-1. Elicit detailed requirements from user
-2. Define user stories and acceptance criteria
-3. Identify constraints and non-goals
+1. Phase 1: Project Structure & Core Infrastructure
+2. Phase 2: Local Persistence Manager
+3. Phase 3: Scraper Module
+4. Continue through all 12 phases
