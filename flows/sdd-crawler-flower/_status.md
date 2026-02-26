@@ -48,15 +48,12 @@ Key decisions and context for resuming:
 
 ### Implementation Complete:
 
-**Files Modified:**
-- `celery_app.py` - Added Flower event configuration
-- `dev_run_celery.sh` - Added --send-events flag
-- `README.md` - Comprehensive documentation
+**Location:** `celery-flower/` directory (main project root)
 
 **Files Created:**
 - `docker-compose.yml` - Redis + Workers + Flower
 - `docker-compose.monitoring.yml` - Prometheus + Grafana
-- `Dockerfile` - Worker image
+- `Dockerfile` - Worker image (references legacy/legacy-celery)
 - `.dockerignore` - Build exclusions
 - `.env.example` - Environment template
 - `prometheus/prometheus.yml` - Metrics scrape config
@@ -64,6 +61,11 @@ Key decisions and context for resuming:
 - `grafana/dashboards/dashboards.yml` - Dashboard provisioning
 - `grafana/dashboards/flower-overview.json` - 8-panel dashboard
 - `nginx/flower.conf` - Reverse proxy config
+- `README.md` - Documentation
+
+**Legacy Directory:**
+- All changes to `legacy/legacy-celery/` have been REVERTED
+- Original files restored
 
 ### Open Questions (Resolved):
 
@@ -82,8 +84,12 @@ Key decisions and context for resuming:
 1. **Integration Testing** - Start stack and verify all components
 2. **Test Commands:**
    ```bash
-   cd legacy/legacy-celery
-   docker-compose up -d
+   # From project root
+   docker-compose -f celery-flower/docker-compose.yml up -d
+   
+   # With monitoring stack
+   docker-compose -f celery-flower/docker-compose.yml -f celery-flower/docker-compose.monitoring.yml up -d
+   
    # Access http://localhost:5555/flower (login: flower/flower_password)
    ```
 3. **Verify:**

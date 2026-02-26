@@ -71,7 +71,7 @@ services:
 networks:
   celery-network:
     external: true
-    name: legacy-legacy-celery_celery-network
+    name: crawler_celery-network
 
 volumes:
   prometheus_data:

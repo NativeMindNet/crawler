@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # Example: QPublic crawler instance
+  crawler-qpublic:
+    build: .
+    container_name: crawler-qpublic
+    volumes:
+      - ./config/platforms/qpublic:/config:ro
+      - ./data/qpublic/results:/data/results
+      - ./data/qpublic/raw:/data/raw
+      - ./data/qpublic/state:/data/state
+    environment:
+      - PLATFORM=qpublic
+      - WEBHOOK_URL=http://gateway:8080/webhooks
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-}
+      - LOG_LEVEL=INFO
+    ports:
+      - "8001:8000"
+    command: worker run
+    restart: unless-stopped
+
+  # Example: Beacon crawler instance
+  # crawler-beacon:
+  #   build: .
+  #   container_name: crawler-beacon
+  #   volumes:
+  #     - ./config/platforms/beacon:/config:ro
+  #     - ./data/beacon/results:/data/results
+  #     - ./data/beacon/raw:/data/raw
+  #     - ./data/beacon/state:/data/state
+  #   environment:
+  #     - PLATFORM=beacon
+  #   ports:
+  #     - "8002:8000"
+  #   command: worker run
+  #   restart: unless-stopped
+
+  # API-only instance (no worker)
+  # crawler-api:
+  #   build: .
+  #   container_name: crawler-api
+  #   volumes:
+  #     - ./config/platforms:/config:ro
+  #     - ./data/shared:/data
+  #   environment:
+  #     - LOG_LEVEL=INFO
+  #   ports:
+  #     - "8000:8000"
+  #   command: api serve --host 0.0.0.0 --port 8000
+  #   restart: unless-stopped

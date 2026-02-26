@@ -40,16 +40,6 @@ htmlcov/
 .tox/
 .nox/
 
-# Docker
-.dockerignore
-docker-compose*.yml
-!Dockerfile
-
-# Documentation
-*.md
-docs/
-flows/
-
 # Git
 .git/
 .gitignore
@@ -79,3 +69,6 @@ state/
 tmp/
 temp/
 *.tmp
+
+# Legacy (mounted as volume)
+legacy/

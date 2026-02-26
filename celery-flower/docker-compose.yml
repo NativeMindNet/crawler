@@ -44,10 +44,10 @@ services:
   worker:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ./celery-flower/Dockerfile
     container_name: celery-worker
     command: >
-      celery -A celery_app worker
+      celery -A tasks worker
       --loglevel=info
       --concurrency=4
       --prefetch-multiplier=1
@@ -57,8 +57,8 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - TZ=Europe/Moscow
     volumes:
-      - ./platforms:/app/platforms
-      - ./data:/data
+      - ./legacy/legacy-celery/platforms:/app/platforms
+      - ./legacy/legacy-celery/data:/data
     depends_on:
       redis:
         condition: service_healthy
@@ -80,7 +80,7 @@ services:
     container_name: celery-flower
     command: >
       flower
-      --app=celery_app
+      --app=tasks
       --broker=redis://redis:6379/0
       --port=5555
       --basic_auth=flower:flower_password
@@ -89,7 +89,6 @@ services:
       - "5555:5555"
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_APP=celery_app
       - FLOWER_BASIC_AUTH=flower:flower_password
       - TZ=Europe/Moscow
     depends_on:

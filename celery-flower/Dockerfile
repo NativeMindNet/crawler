@@ -11,8 +11,8 @@ FROM python:3.11-slim
 #   - Celery worker with Flower event emission support
 #
 #   Usage:
-#   - Build: docker build -t celery-crawler .
-#   - Run: docker-compose up -d
+#   - Build: docker build -f celery-flower/Dockerfile -t celery-crawler .
+#   - Run: docker-compose -f celery-flower/docker-compose.yml up -d
 # -----------------------------------------------------------------------------------------
 
 # Install system dependencies
@@ -35,17 +35,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy requirements first (better caching)
-COPY requirements.txt .
+# Copy requirements from legacy directory
+COPY legacy/legacy-celery/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# Copy application code from legacy directory
+COPY legacy/legacy-celery/ .
 
 # Create directories for data and platforms
-RUN mkdir -p /data /app/platforms
+RUN mkdir -p /data /platforms
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
@@ -53,4 +53,4 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV DISPLAY=:99
 
 # Default command (override in docker-compose)
-CMD ["celery", "-A", "celery_app", "worker", "--loglevel=info", "--send-events"]
+CMD ["celery", "-A", "tasks", "worker", "--loglevel=info", "--send-events"]
