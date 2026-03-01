@@ -1,30 +1,52 @@
-# Sub-Project Context: Deal Detective (Swipe App)
+# Project Context: Tax Lien Investment Platform (Meta-Project)
 
 ## Overview
-Данный репозиторий является **Sub-Project** в экосистеме TAXLIEN.online. Он предназначен исключительно для реализации кода мобильного приложения для экспертной разметки и быстрого поиска активов.
+This is the **Meta-Project** for the Tax Lien Investment Platform. It serves as the architectural headquarters. 
 
-## Workflow: Sub-Project Implementation
-В этом подпроекте действует строгий режим **Implementation Layer**:
-1.  **Источник истины:** Архитектурные требования и контракты API определены в Meta-Project в директории `specs/007-taxlien-swipe-app/`.
-2.  **Синхронизация:** Для обновления контекста и возврата технических решений в архитектуру используется команда `/speckit.sdd` из корня Meta-проекта.
-3.  **Локальный процесс:** Разработка ведется через `/sdd` (start/resume), создавая локальные потоки в `flows/sdd-*/`.
-4.  **Граница ответственности:** Здесь не принимаются архитектурные решения, влияющие на другие модули. Все изменения в контрактах должны быть сначала отражены в Meta-Project.
+**CRITICAL:** No implementation code exists in this root repository. All code resides in specialized Sub-Projects (separate repositories/folders).
 
-## Roles & Responsibilities
-- **Implementation:** Реализация Flutter UI, Canvas для аннотаций, логики FVI и оффлайн-режима.
-- **Independence:** Подпроект архитектурно независим, но взаимодействует с `taxlien-gateway` по утвержденным контрактам.
-- **Focus:** Приоритет — поддержка аукциона в Аризоне (февраль 2026).
+## Workflow: Spec-Driven Development (SDD)
 
-## Constraints
-- Никакой прямой связи с документацией других подпроектов.
-- Все внешние зависимости (ML, Data) — только через API Gateway.
-- Код реализации пишется **только здесь**.
+We use a strict **Spec-Driven Development** workflow separated into two layers:
 
-## Документация и решения
+### 1. Architecture Layer (Meta-Project)
+- **Tool:** `/speckit`
+- **Location:** `specs/`
+- **Focus:** High-level architecture, Business Logic, Data Flow, Cross-module dependencies.
+- **Goal:** Define **WHAT** we are building and **WHY**.
+- **Process:**
+    1.  `/speckit.specify`: Draft initial requirements.
+    2.  `/speckit.clarify`: Refine and de-risk.
+    3.  `/speckit.plan`: Define the technical architecture and sub-project responsibilities.
 
-### `/adr` - Architectural Decision Records
-Используйте эту команду для управления записями о технических решениях (ADR).
-Эта система помогает отслеживать решения, сохранять контекст и интегрироваться со стратегией ветвления.
+### 2. Implementation Layer (Sub-Projects)
+- **Tool:** `/sdd` (running inside sub-project folders)
+- **Location:** `<subproject>/flows/sdd-*/`
+- **Focus:** Low-level design, Class/Function structure, Code implementation, Testing.
+- **Goal:** Define **HOW** to build it and execute.
+- **Process:**
+    1.  Receive context via `/speckit.sdd push`.
+    2.  Run `/sdd start`: Initialize local flow.
+    3.  Iterate through Requirements -> Specs -> Plan -> Implementation locally.
+    4.  Report back via `/speckit.sdd pull`.
 
-- **Использование:** `/adr` (с последующими инструкциями или для обращения к руководству)
-- **Руководство:** `.gemini/commands/adr.toml`
+## Bridge: `/speckit.sdd`
+
+This command synchronizes the two layers.
+
+- **Push (`/speckit.sdd push`)**: Transmits approved architecture from Meta-Project to Sub-Project to kickstart implementation.
+- **Pull (`/speckit.sdd pull`)**: Feeds implementation discoveries (constraints, edge cases, refactorings) back into the Meta-Project architecture to keep the "Truth" updated.
+
+## Sub-Projects Map
+*(Maintain a list of active sub-projects here)*
+- `taxlien-sdd` (Current Meta-Repo)
+- `taxlien-parser` (Data ingestion)
+- `taxlien-gateway` (API Gateway)
+- `taxlien-ml` (Machine Learning models)
+- `taxlien-flutter-app` (Mobile/Web Client)
+
+## Core Mandates
+1.  **Never implement code in the Meta-Project.**
+2.  **Always update Specs in Meta-Project** when implementation diverges significantly.
+3.  Use `/speckit` for high-level decisions.
+4.  Use `/sdd` for code-level execution.

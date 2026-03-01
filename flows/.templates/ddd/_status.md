@@ -1,8 +1,8 @@
-# Status: sdd-[FEATURE_NAME]
+# Status: ddd-[FEATURE_NAME]
 
 ## Current Phase
 
-REQUIREMENTS | SPECIFICATIONS | PLAN | IMPLEMENTATION
+REQUIREMENTS | SPECIFICATIONS | PLAN | IMPLEMENTATION | DOCUMENTATION
 
 ## Phase Status
 
@@ -26,6 +26,8 @@ DRAFTING | REVIEW | APPROVED | BLOCKED
 - [ ] Plan approved
 - [ ] Implementation started
 - [ ] Implementation complete
+- [ ] Documentation drafted
+- [ ] Documentation approved
 
 ## Context Notes
 
