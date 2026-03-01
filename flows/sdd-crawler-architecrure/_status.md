@@ -5,7 +5,7 @@
 
 **Current Phase:** DRAFTED (pending review)
 **Last Updated:** 2026-03-01
-**Version:** 2.0
+**Version:** 2.1
 
 ---
 
@@ -16,6 +16,8 @@
 - [x] Define external orchestration model
 - [x] Document component catalog
 - [x] Define deployment options (Docker, K8s)
+- [x] Define platform-agnostic storage architecture
+- [x] Define K8s labels for service discovery
 
 ---
 
@@ -25,6 +27,8 @@
 - [x] Architecture v2.0 update (single-platform pivot, 2026-03-01)
 - [x] Comparison table: old vs new design
 - [x] Deployment examples (docker-compose, kubernetes)
+- [x] v2.1: Platform-agnostic storage design (2026-03-01)
+- [x] v2.1: K8s labels convention for discovery (2026-03-01)
 
 ---
 
