@@ -1,53 +1,67 @@
-# Status: sdd-taxlien-parser-rawdata
+# Status: sdd-crawler-rawdata
 
-## Current Phase
+## DEPRECATED - MERGED
 
-SPECIFICATIONS
+**Merged Into:** `sdd-crawler-architecture` (Storage Architecture)
+**Merge Date:** 2026-03-01
+**Reason:** Raw data storage is part of LPM file structure in architecture doc
 
-## Phase Status
+---
 
-REVIEW (awaiting approval)
+## What Happened
 
-## Last Updated
+1. Raw data storage patterns are documented in `sdd-crawler-architecture/01-architecture.md`
+2. File organization (/data/raw/, /data/pending/, /data/images/) is in Section 7
+3. This SDD's requirements are incorporated into architecture doc
 
-2026-02-23 by Qwen
+---
 
-## Blockers
+## Key Concepts (Now in Architecture)
 
-- None
+**Storage Structure:**
+```
+/data/
+├── lpm.db               # Task queue + metadata
+├── pending/             # Results ready for consumption
+│   └── {task_id}.json
+├── raw/                 # HTML archive
+│   └── {task_id}.html.gz
+└── images/
+    └── {task_id}/
+        ├── photo_1.jpg
+        └── photo_2.jpg
+```
 
-## Progress
+**Features:**
+- HTML saved before parsing (source of truth)
+- JSON results with metadata (timestamp, platform, version)
+- PDF/image per-parcel storage (no global dedup)
+- Compression for old HTML files (.gz after N days)
+- Docker volumes for CI/CD persistence
 
-- [x] Requirements drafted
-- [x] Requirements approved (2026-02-23)
-- [x] Specifications drafted
-- [ ] Specifications approved  ← current
-- [ ] Plan drafted
-- [ ] Plan approved
-- [ ] Implementation started
-- [ ] Implementation complete
+---
 
-## Context Notes
+## Historical Context
 
-Key decisions and context for resuming:
+See `01-requirements.md` in this directory for original raw data requirements.
 
-- **Scope:** Raw data storage for scraped files (HTML, JSON, PDF, images)
-- **Sources:** Current `orchestrator/storage/`, `storage/`, and `taxlien-storage/` patterns
-- **Deployment:** Docker volumes (external bind mounts) for persistence
-- **CI/CD:** Data preserved across deploys via host volumes
+Original scope:
+- HTML scraping persistence
+- Parsed JSON storage
+- PDF document handling
+- Image asset handling
+- CI/CD data persistence
+- Storage organization
 
-**Resolved decisions:**
-- PDF/image deduplication: **per-parcel** (no global dedup)
-- Failed scrape HTML: **don't keep** (temp debug for last attempt only)
-- HTML compression: **yes**, compress to `.gz` after N days
-- Imagery download timing: **out of scope** for this spec
+**Resolved Decisions:**
+- PDF deduplication: per-parcel
+- Failed scrape HTML: don't keep
+- HTML compression: yes, after 30 days
+- County subdirectories: via volume subPath
 
-## Fork History
+---
 
-- New SDD flow (not forked)
-- Reason: Document and improve raw data storage architecture
+## See Also
 
-## Next Actions
-
-1. User reviews and approves requirements
-2. Advance to SPECIFICATIONS phase
+- `sdd-crawler-architecture/01-architecture.md` Section 7 - Storage Architecture
+- `SDD-CONSOLIDATION.md` - Consolidation plan

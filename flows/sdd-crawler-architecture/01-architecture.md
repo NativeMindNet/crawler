@@ -1,6 +1,6 @@
 # Architecture: Universal Single-Platform Crawler
 
-**Version:** 2.0
+**Version:** 3.0
 **Status:** ARCHITECTURE DOCUMENT
 **Last Updated:** 2026-03-01
 **Scope:** Universal crawler architecture - one instance per platform, orchestrated externally.
@@ -18,7 +18,7 @@ The **Universal Crawler** is a stateless, single-platform data collection system
 | Multi-platform in one codebase | Single-platform per instance |
 | Tax-lien specific | Domain-agnostic |
 | Platform code embedded | Platform configs as JSON |
-| Celery-only workers | **Dual mode: Async OR Celery** |
+| Celery-only workers | **Celery-only (simplified)** |
 | Complex strategy mix | External orchestration |
 
 ### Key Architectural Principles
@@ -30,8 +30,8 @@ The **Universal Crawler** is a stateless, single-platform data collection system
 | **Config-Driven** | Platform behavior defined in JSON configs, not code |
 | **Docker-First** | Containerized with volume mounts for results |
 | **Dual Interface** | Both API (FastAPI) and CLI (Typer) access |
-| **Dual Worker Mode** | Async (lightweight) OR Celery (parallel) - choose per deployment |
-| **Local Persistence** | SQLite + files for resilience and resume capability |
+| **Celery + Flower** | Distributed task queue with real-time monitoring |
+| **Local Persistence** | LPM (SQLite + files) for resilience and resume capability |
 
 ---
 
@@ -151,92 +151,77 @@ config/platforms/{platform_name}/
 | Mode | Description | Use Case |
 |------|-------------|----------|
 | **API Mode** | HTTP endpoints for task management | Production, external integration |
-| **CLI Mode** | Command-line task execution | Development, debugging |
+| **CLI Mode** | Command-line task execution | Development, debugging, `celery call` |
 | **Worker Mode** | Continuous queue processing | Background crawling |
 | **Drain Mode** | Process queue until empty | Batch jobs |
 
-### 3.4 Worker Modes (Async vs Celery)
+### 3.4 Worker Architecture (Celery + Flower)
 
-The crawler supports two worker modes, selectable via `MODE` environment variable:
-
-#### Async Mode (Default)
+The crawler uses **Celery** for distributed task execution with **Flower** for real-time monitoring.
 
 ```
-MODE=async
-
-┌─────────────────────────────────────────┐
-│          CRAWLER INSTANCE               │
-├─────────────────────────────────────────┤
-│  ┌─────────────────────────────────┐    │
-│  │     Async Worker Loop           │    │
-│  │  (single process, asyncio)      │    │
-│  └─────────────────────────────────┘    │
-│                 │                        │
-│                 ▼                        │
-│  ┌─────────────────────────────────┐    │
-│  │     SQLite (task queue)         │    │
-│  └─────────────────────────────────┘    │
-└─────────────────────────────────────────┘
-
-Pros: Simple, no dependencies, fast startup
-Cons: Single-threaded, limited parallelism
-Best for: Low volume, development, simple deployments
+┌─────────────────────────────────────────────────────────────────────┐
+│                         CRAWLER INSTANCE                             │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐             │
+│  │   Worker 1  │    │   Worker 2  │    │   Worker N  │             │
+│  │  (scrape)   │    │  (scrape)   │    │  (scrape)   │             │
+│  └──────┬──────┘    └──────┬──────┘    └──────┬──────┘             │
+│         │                  │                  │                     │
+│         └──────────────────┼──────────────────┘                     │
+│                            │                                        │
+│                            ▼                                        │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │                       Redis Broker                           │   │
+│  │  Queues: urgent | high | default | low                       │   │
+│  │  Rate Limiting: per-task annotations                         │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│                            │                                        │
+│         ┌──────────────────┼──────────────────┐                     │
+│         ▼                  ▼                  ▼                     │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐     │
+│  │   Celery    │    │   Flower    │    │      LPM            │     │
+│  │    Beat     │    │   (:5555)   │    │   (SQLite+Files)    │     │
+│  │ (Scheduler) │    │ Monitoring  │    │   Local Persist     │     │
+│  └─────────────┘    └─────────────┘    └─────────────────────┘     │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-#### Celery Mode
+#### Component Responsibilities
 
-```
-MODE=celery
+| Component | Purpose |
+|-----------|---------|
+| **Celery Workers** | Execute scrape/parse tasks in parallel |
+| **Redis Broker** | Task queue with priority support (4 queues) |
+| **Celery Beat** | Periodic tasks (Gateway sync, cleanup, scheduled crawls) |
+| **Flower** | Real-time monitoring, retry, revoke, metrics |
+| **LPM** | Local persistence (SQLite + files) for resilience |
 
-┌─────────────────────────────────────────────────────────────┐
-│                    CRAWLER INSTANCE                          │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
-│  │   Worker 1  │    │   Worker 2  │    │   Worker N  │     │
-│  │  (scrape)   │    │  (scrape)   │    │  (scrape)   │     │
-│  └──────┬──────┘    └──────┬──────┘    └──────┬──────┘     │
-│         │                  │                  │             │
-│         └──────────────────┼──────────────────┘             │
-│                            │                                │
-│                            ▼                                │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │                    Redis Broker                      │   │
-│  │  Queues: urgent | high | default | low               │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                            │                                │
-│                            ▼                                │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              Flower Dashboard (:5555)                │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+#### Priority Queues
 
-Pros: Parallel processing, priority queues, monitoring, retry
-Cons: Requires Redis, more complex deployment
-Best for: High volume, 1000+ tasks, production
-```
+| Queue | Priority | Use Case |
+|-------|----------|----------|
+| `urgent` | 1 (highest) | Auction-imminent tasks |
+| `high` | 2 | Delinquent properties |
+| `default` | 3 | Normal crawling |
+| `low` | 4 | Background maintenance |
 
-#### Mode Selection Guide
+#### Flower Dashboard Features
 
-| Scenario | Recommended Mode | Reason |
-|----------|-----------------|--------|
-| Development | Async | Fast iteration |
-| < 100 tasks/hour | Async | Overkill to use Celery |
-| 100-1000 tasks/hour | Either | Depends on latency needs |
-| > 1000 tasks/hour | Celery | Parallel processing |
-| Need monitoring | Celery | Flower dashboard |
-| Need priority queues | Celery | Built-in support |
-| Minimal dependencies | Async | No Redis needed |
+- Real-time task monitoring (live progress)
+- Worker status and health indicators
+- Task retry/revoke with one click
+- Prometheus metrics export (`/metrics`)
+- Task history and statistics
+- Rate limiting visibility
 
-#### Starting in Each Mode
+#### Starting the Stack
 
 ```bash
-# Async Mode (default)
 docker-compose up -d
-
-# Celery Mode
-docker-compose -f docker-compose.celery.yml up -d
+# Starts: crawler-api, redis, celery-worker, celery-beat, flower
 ```
 
 ---
@@ -681,13 +666,14 @@ This design enables:
 |--------|---------------------|------------------------|
 | **Scope** | 27+ platforms in one codebase | 1 platform per instance |
 | **Domain** | Tax-lien specific | Any web data |
-| **Worker** | Celery only | **Async OR Celery** (choose) |
+| **Worker** | Celery only | **Celery + Flower** |
 | **Orchestration** | Internal strategy mixer | External (Gateway/Scheduler) |
 | **Platform code** | Python classes | JSON configs |
-| **Scaling** | Celery worker count | Container instances + optional Celery |
+| **Scaling** | Celery worker count | Container instances × Celery workers |
 | **Complexity** | High (multi-platform logic) | Low (single focus) |
 | **Testability** | Difficult (coupled platforms) | Easy (isolated instances) |
-| **Dependencies** | Redis required | Redis optional (Celery mode only) |
+| **Monitoring** | Custom code | **Flower dashboard** |
+| **Dependencies** | Redis | Redis + Flower |
 
 ---
 
@@ -701,6 +687,6 @@ This design enables:
 
 ---
 
-**Document Status:** DRAFTED v2.1
+**Document Status:** DRAFTED v3.0
 **Last Updated:** 2026-03-01
-**Author:** Claude (updated with platform-agnostic storage and K8s discovery)
+**Author:** Claude (v3.0: Celery-only architecture, removed async mode, added Flower integration)

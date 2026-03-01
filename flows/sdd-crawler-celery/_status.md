@@ -6,19 +6,20 @@ REQUIREMENTS
 
 ## Phase Status
 
-DRAFTING
+UPDATED (v3.0 architecture alignment)
 
 ## Last Updated
 
-2026-02-26 by Qwen (SDD mode)
+2026-03-01 by Claude
 
 ## Blockers
 
-- None - awaiting requirements review
+- None
 
 ## Progress
 
 - [x] Requirements drafted (initial analysis complete)
+- [x] **Architecture v3.0: Celery is now ONLY mode** (2026-03-01)
 - [ ] Requirements approved
 - [ ] Specifications drafted
 - [ ] Specifications approved
@@ -27,40 +28,98 @@ DRAFTING
 - [ ] Implementation started
 - [ ] Implementation complete
 
+---
+
+## Architecture Change (v3.0)
+
+**Before:** Celery was optional mode alongside SQLite async mode
+
+**After:** Celery is the **ONLY** worker mode (async removed)
+
+| Aspect | v2.x | v3.0 |
+|--------|------|------|
+| Async Mode | Available | **Removed** |
+| Celery Mode | Optional | **Required** |
+| Redis | Optional | **Required** |
+| Flower | Optional | **Included** |
+
+---
+
 ## Context Notes
 
 Key decisions and context for resuming:
 
-- **Purpose**: This SDD flow captures Celery distributed task queue requirements that were NOT in the main `sdd-crawler` spec
-- **Legacy Source**: Analysis of `/legacy/legacy-celery/` directory (celery_app.py, tasks.py, functions.py, platforms/qpublic/)
-- **Deployment Mode**: Celery is an **optional** mode alongside SQLite standalone mode, not a replacement
-- **Broker**: Redis is the primary broker (legacy compatibility)
-- **Monitoring**: Flower dashboard for task monitoring
-- **Task Chains**: Preserve legacy patterns (scrape → save → parse → import)
+- **Purpose**: Core Celery distributed task queue requirements
+- **Status**: **FOUNDATIONAL** - this is now the only worker mode
+- **Broker**: Redis (required)
+- **Monitoring**: Flower dashboard (built-in)
+- **Task Chains**: scrape → save → parse
 
-### Legacy Components Analyzed:
+### Components:
 
-1. **celery_app.py**: Basic Celery app with Redis broker
-2. **tasks.py**: Task chains (qpublic_main_chain, qpublic_single_url_chain), periodic task setup
-3. **functions.py**: Shared utilities (scrape_single_url, save_html, save_json, import_to_db)
-4. **platforms/qpublic/qpublic_functions.py**: Platform-specific scraping/parsing logic
-5. **requirements.txt**: Celery 5.4.0, Redis 5.2.1, Flower 2.0.1, SeleniumBase 4.34.7
+| Component | Purpose |
+|-----------|---------|
+| Celery Workers | Task execution |
+| Redis Broker | Task queue |
+| Celery Beat | Scheduling |
+| Flower | Monitoring |
 
-### Key Patterns to Preserve:
+### Task Patterns:
 
-- Celery chains for sequential workflows
-- Celery groups for parallel URL processing
-- Rate limiting via task annotations
-- Result backend with expiration
-- Periodic scheduling via Celery Beat
+```python
+# Single task
+@app.task(queue='default', rate_limit='5/m')
+def scrape_url(url): ...
+
+# Chain
+chain(scrape_url.s(url), parse_html.s(), save_result.s())()
+
+# Group (parallel)
+group(scrape_url.s(url) for url in urls)()
+```
+
+### Priority Queues:
+
+| Queue | Priority | Use Case |
+|-------|----------|----------|
+| urgent | 1 | Auction-imminent |
+| high | 2 | Delinquent properties |
+| default | 3 | Normal crawling |
+| low | 4 | Maintenance |
+
+---
+
+## Open Questions (To Resolve)
+
+| Question | Options | Decision |
+|----------|---------|----------|
+| Q1 - Broker Config | ENV / config file | TBD |
+| Q2 - Serialization | JSON / msgpack | JSON (default) |
+| Q3 - Error Handling | Auto-retry count | TBD |
+| Q4 - Result Backend | Redis / SQLite | Redis |
+| Q5 - Periodic Config | JSON file / DB | JSON file |
+| Q6 - Worker Config | Concurrency, pool | TBD |
+| Q7 - Deployment | docker-compose | Yes |
+
+---
 
 ## Next Actions
 
-1. **User reviews requirements** - Confirm scope and user stories
-2. **Resolve open questions** - Q1-Q7 need answers before specs
+1. **User reviews requirements** - Confirm updated scope
+2. **Resolve open questions** - Q1, Q3, Q6 need answers
 3. **Move to SPECIFICATIONS phase** - Design Celery architecture
+
+---
+
+## Related SDDs
+
+- `sdd-crawler-architecture` - v3.0 Celery-only architecture
+- `sdd-crawler-appsmith` - v2.0 Flower + API
+- `sdd-crawler-flower` - MERGED into sdd-crawler-appsmith
+
+---
 
 ## Fork History
 
-- This is a new SDD flow forked from analysis of `sdd-crawler` + legacy-celery codebase
-- Reason: Capture Celery requirements that were missing from main sdd-crawler spec
+- v1.0: Original Celery requirements (optional mode)
+- v3.0: Updated for Celery-only architecture (2026-03-01)

@@ -1,11 +1,8 @@
 # Status: sdd-crawler-architecture
 
-> **SDD Flow Status Page**
-> Note: Originally named "sdd-crawler-architecrure" (with typo)
-
-**Current Phase:** DRAFTED (pending review)
+**Current Phase:** PLAN (drafted, awaiting review)
 **Last Updated:** 2026-03-01
-**Version:** 2.1
+**Version:** 3.0
 
 ---
 
@@ -18,6 +15,15 @@
 - [x] Define deployment options (Docker, K8s)
 - [x] Define platform-agnostic storage architecture
 - [x] Define K8s labels for service discovery
+- [x] Architecture approved (2026-03-01)
+- [x] Specifications drafted
+- [x] Added: SOCKS proxy support (plain + tor-socks-proxy-service)
+- [x] Added: Rate limiting per domain
+- [x] Specifications approved (2026-03-01)
+- [x] Plan drafted
+- [x] **v3.0: Celery-only architecture (removed async mode)**
+- [x] **v3.0: Flower integration for monitoring**
+- [ ] Plan approved
 
 ---
 
@@ -29,6 +35,57 @@
 - [x] Deployment examples (docker-compose, kubernetes)
 - [x] v2.1: Platform-agnostic storage design (2026-03-01)
 - [x] v2.1: K8s labels convention for discovery (2026-03-01)
+- [x] Architecture approved (2026-03-01)
+- [x] Specifications drafted (2026-03-01)
+- [x] v2.2: Added proxy support + rate limiting (2026-03-01)
+- [x] Specifications approved (2026-03-01)
+- [x] Plan drafted (2026-03-01)
+- [x] **v3.0: Removed async mode, Celery-only (2026-03-01)** ← current
+- [ ] Plan approved
+
+---
+
+## Implementation Summary
+
+**5 Phases, 24 Tasks, ~76 Files**
+
+| Phase | Tasks | Complexity |
+|-------|-------|------------|
+| 1. Foundation | 4 | Low-Medium |
+| 2. Core Modules | 5 | Medium-High |
+| 3. Interfaces | 2 | Medium |
+| 4. Advanced Features | 3 | Medium-High |
+| 5. Testing & Deployment | 4 | Medium-High |
+
+---
+
+## Key Changes in v3.0
+
+### Simplification: Celery-Only
+
+| Aspect | v2.x | v3.0 |
+|--------|------|------|
+| Worker Mode | Dual (Async OR Celery) | **Celery only** |
+| Monitoring | Optional Flower | **Flower built-in** |
+| Dependencies | Redis optional | Redis required |
+| Complexity | Two code paths | Single unified path |
+
+### Why Celery-Only?
+
+1. **Simplicity** - One worker implementation, not two
+2. **Flower** - Provides all monitoring needs out-of-box
+3. **Production-ready** - Celery is mature, battle-tested
+4. **No trade-offs** - Celery handles both low and high volume
+
+### Stack Components
+
+| Component | Purpose |
+|-----------|---------|
+| Celery Workers | Task execution |
+| Redis | Task broker |
+| Celery Beat | Scheduling (Gateway sync, periodic crawls) |
+| Flower | Monitoring, retry, metrics |
+| LPM | Local persistence (SQLite + files) |
 
 ---
 
@@ -40,9 +97,9 @@
 |--------|------------|------------|
 | Scope | Multi-platform in one codebase | Single-platform per instance |
 | Domain | Tax-lien specific | Domain-agnostic |
-| Worker | Celery distributed | Async single-process |
+| Worker | Celery distributed | Single-platform focused |
 | Orchestration | Internal strategy mixer | External (Gateway/Scheduler) |
-| Scaling | Celery worker count | Container instances |
+| Scaling | Celery worker count | Container instances × Celery workers |
 
 ### Why Single-Platform?
 

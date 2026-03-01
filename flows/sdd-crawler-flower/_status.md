@@ -1,105 +1,46 @@
 # Status: sdd-crawler-flower
 
-## Current Phase
+## DEPRECATED - MERGED
 
-IMPLEMENTATION
+**Merged Into:** `sdd-crawler-appsmith` v2.0
+**Merge Date:** 2026-03-01
+**Reason:** Flower is now the primary monitoring UI; AppSmith replaced with "Flower + minimal API"
 
-## Phase Status
+---
 
-COMPLETE
+## What Happened
 
-## Last Updated
+1. `sdd-crawler-architecture` v3.0 adopted Celery-only (removed async mode)
+2. `sdd-crawler-appsmith` v2.0 pivoted from AppSmith to Flower
+3. Flower requirements now live in `sdd-crawler-appsmith/01-requirements.md`
 
-2026-02-26 by Qwen (SDD mode)
+---
 
-## Blockers
+## Implementation Status
 
-- None - implementation complete, pending integration testing
+The implementation in `celery-flower/` directory remains valid and is referenced by `sdd-crawler-appsmith`.
 
-## Progress
+**Files Created (still valid):**
+- `celery-flower/docker-compose.yml` - Redis + Workers + Flower
+- `celery-flower/docker-compose.monitoring.yml` - Prometheus + Grafana
+- `celery-flower/prometheus/prometheus.yml` - Metrics scrape config
+- `celery-flower/grafana/dashboards/flower-overview.json` - Dashboard
+- `celery-flower/nginx/flower.conf` - Reverse proxy config
 
-- [x] Requirements drafted (initial analysis complete)
-- [x] Requirements approved
-- [x] Specifications drafted
-- [x] Specifications approved
-- [x] Plan drafted
-- [x] Plan approved
-- [x] Implementation started
-- [x] Implementation complete (pending integration testing)
+---
 
-## Context Notes
+## Historical Context
 
-Key decisions and context for resuming:
+See `01-requirements.md` in this directory for original Flower requirements.
 
-- **Purpose**: Flower monitoring for Celery-based crawler deployments
-- **Legacy Source**: Analysis of `/legacy/legacy-celery/` (flower==2.0.1 in requirements.txt)
-- **Deployment Mode**: Flower is **Celery-mode only** - not needed for SQLite standalone mode
-- **Authentication**: Basic Auth for MVP, OAuth (GitHub) optional
-- **Prometheus**: Optional but recommended for Grafana integration
-- **Port Exposure**: Internal only (reverse proxy required in production)
+These requirements are now part of `sdd-crawler-appsmith` v2.0 which consolidates:
+- Flower for task monitoring
+- Minimal FastAPI endpoints for config/logs/restart
 
-### Architecture Decisions:
+---
 
-1. **Flower Service**: Separate container connecting to same Redis broker as workers
-2. **Celery Events**: Workers must emit events (`worker_send_task_events=True`)
-3. **Docker Compose**: Flower + Prometheus + Grafana as optional monitoring stack
-4. **Reverse Proxy**: nginx with HTTPS, WebSocket support for real-time updates
-5. **Security**: HTTPS required in production, session timeout 30 minutes
+## See Also
 
-### Implementation Complete:
-
-**Location:** `celery-flower/` directory (main project root)
-
-**Files Created:**
-- `docker-compose.yml` - Redis + Workers + Flower
-- `docker-compose.monitoring.yml` - Prometheus + Grafana
-- `Dockerfile` - Worker image (references legacy/legacy-celery)
-- `.dockerignore` - Build exclusions
-- `.env.example` - Environment template
-- `prometheus/prometheus.yml` - Metrics scrape config
-- `grafana/datasources/prometheus.yml` - Datasource
-- `grafana/dashboards/dashboards.yml` - Dashboard provisioning
-- `grafana/dashboards/flower-overview.json` - 8-panel dashboard
-- `nginx/flower.conf` - Reverse proxy config
-- `README.md` - Documentation
-
-**Legacy Directory:**
-- All changes to `legacy/legacy-celery/` have been REVERTED
-- Original files restored
-
-### Open Questions (Resolved):
-
-| Question | Decision |
-|----------|----------|
-| **Q1 - Authentication** | Basic Auth for MVP, OAuth optional |
-| **Q2 - OAuth Provider** | GitHub (most common for self-hosted) |
-| **Q3 - Port Exposure** | Internal only (reverse proxy in prod) |
-| **Q4 - Prometheus** | Optional but recommended |
-| **Q5 - Custom Views** | Use Flower default views |
-| **Q6 - Alerting** | Via Prometheus/Grafana, not Flower |
-| **Q7 - Persistence** | In-memory (session-based) |
-
-## Next Actions
-
-1. **Integration Testing** - Start stack and verify all components
-2. **Test Commands:**
-   ```bash
-   # From project root
-   docker-compose -f celery-flower/docker-compose.yml up -d
-   
-   # With monitoring stack
-   docker-compose -f celery-flower/docker-compose.yml -f celery-flower/docker-compose.monitoring.yml up -d
-   
-   # Access http://localhost:5555/flower (login: flower/flower_password)
-   ```
-3. **Verify:**
-   - Flower shows workers
-   - Tasks visible in real-time
-   - Prometheus scraping metrics
-   - Grafana dashboard populated
-
-## Fork History
-
-- This is a new SDD flow spun off from `sdd-crawler-celery` analysis
-- Reason: Flower monitoring is a significant feature requiring its own spec
-- Related: `sdd-crawler-celery` (distributed task queue requirements)
+- `sdd-crawler-appsmith/_status.md` - Current home for Flower requirements
+- `sdd-crawler-architecture/_status.md` - v3.0 Celery-only architecture
+- `SDD-CONSOLIDATION.md` - Consolidation plan
