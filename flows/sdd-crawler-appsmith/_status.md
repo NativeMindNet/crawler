@@ -28,9 +28,9 @@
 
 | Task | Status | Started | Completed | Notes |
 |------|--------|---------|-----------|-------|
-| 1.1 Add API Schemas | PENDING | - | - | - |
-| 1.2 Create Metrics Route | PENDING | - | - | - |
-| 1.3 Create Logs Route | PENDING | - | - | - |
+| 1.1 Add API Schemas | COMPLETED | 2026-03-01 | 2026-03-01 | Syntax OK |
+| 1.2 Create Metrics Route | COMPLETED | 2026-03-01 | 2026-03-01 | Syntax OK |
+| 1.3 Create Logs Route | IN PROGRESS | 2026-03-01 | - | - |
 | 1.4 Create System Route | PENDING | - | - | - |
 | 1.5 Enhance Health Route | PENDING | - | - | - |
 | 1.6 Enhance Tasks Route | PENDING | - | - | - |

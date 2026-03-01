@@ -75,13 +75,25 @@
 
 ### Remaining Work
 
-| Priority | Task | Files |
-|----------|------|-------|
-| HIGH | 2.4 Proxy Support | `proxy.py`, `proxy_pool.py` |
-| HIGH | 2.5 Rate Limiting | `rate_limiter.py` |
-| MEDIUM | 2.6 Flower Config | `flower.conf.py` |
-| MEDIUM | 5.1 Unit Tests | 9 test files |
-| LOW | 5.3 Docker Naming | File standardization |
+| Priority | Task | Files | TDD Spec |
+|----------|------|-------|----------|
+| HIGH | 2.4 Proxy Support | `proxy.py`, `proxy_pool.py` | ✅ `05-tdd-proxy.md` |
+| HIGH | 2.5 Rate Limiting | `rate_limiter.py` | ✅ `05-tdd-rate-limiter.md` |
+| MEDIUM | 2.6 Flower Config | `flower.conf.py` | ✅ `05-tdd-flower.md` |
+| MEDIUM | 5.1 Unit Tests | 9 test files | 📋 See specs |
+| LOW | 5.3 Docker Naming | File standardization | 📋 See specs |
+
+---
+
+## TDD/DDD/VDD Specifications
+
+Created comprehensive test-driven development specifications for remaining work:
+
+| Specification | Contents |
+|---------------|----------|
+| `05-tdd-proxy.md` | VDD (user stories), DDD (aggregates), TDD (20+ tests) |
+| `05-tdd-rate-limiter.md` | VDD (rate limit stories), DDD (Token Bucket), TDD (25+ tests) |
+| `05-tdd-flower.md` | VDD (monitoring stories), DDD (Flower context), TDD (integration tests) |
 
 ---
 

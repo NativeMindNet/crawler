@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 import logging
 
-from crawler.api.routes import health, tasks, scrape, bulk, config, webhooks
+from crawler.api.routes import health, tasks, scrape, bulk, config, webhooks, metrics
 from crawler.api.middleware import LoggingMiddleware, ErrorMiddleware
 from crawler.lpm import LocalPersistenceManager
 from crawler.config_loader import ConfigLoader
@@ -53,12 +53,16 @@ def create_app(
     app.state.config_loader = ConfigLoader(config_dir)
     app.state.platform = platform
     app.state.config_dir = config_dir
+    app.state.mode = "async"  # Default mode, can be overridden by env var
 
     @app.on_event("startup")
     async def startup():
         """Initialize on startup."""
         await app.state.lpm.initialize()
-        logger.info("Crawler API started")
+        # Check for worker mode from environment
+        import os
+        app.state.mode = os.environ.get("MODE", "async")
+        logger.info(f"Crawler API started (mode={app.state.mode})")
 
     @app.on_event("shutdown")
     async def shutdown():
@@ -73,5 +77,6 @@ def create_app(
     app.include_router(bulk.router, prefix="/bulk", tags=["Bulk"])
     app.include_router(config.router, prefix="/config", tags=["Config"])
     app.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"])
+    app.include_router(metrics.router, prefix="/metrics", tags=["Metrics"])
 
     return app

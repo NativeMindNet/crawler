@@ -67,6 +67,17 @@ CREATE TABLE IF NOT EXISTS platform_configs (
     error TEXT
 );
 
+-- Logs table for AppSmith UI
+CREATE TABLE IF NOT EXISTS logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL,
+    level TEXT NOT NULL,
+    message TEXT NOT NULL,
+    logger TEXT,
+    context_json TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_tasks_status_priority ON tasks(status, priority DESC);
 CREATE INDEX IF NOT EXISTS idx_tasks_platform ON tasks(platform);
@@ -74,4 +85,7 @@ CREATE INDEX IF NOT EXISTS idx_bulk_jobs_status ON bulk_jobs(status);
 CREATE INDEX IF NOT EXISTS idx_discovered_links_source ON discovered_links(source_task_id);
 CREATE INDEX IF NOT EXISTS idx_discovered_links_processed ON discovered_links(processed);
 CREATE INDEX IF NOT EXISTS idx_ingestion_jobs_status ON ingestion_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level);
+CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp);
+CREATE INDEX IF NOT EXISTS idx_logs_logger ON logs(logger);
 """

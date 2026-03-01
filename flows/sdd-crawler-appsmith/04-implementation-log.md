@@ -9,27 +9,48 @@
 
 ### Task 1.1: Add API Schemas
 
-**Status:** IN PROGRESS
+**Status:** COMPLETED
 **Started:** 2026-03-01
+**Completed:** 2026-03-01
 **File:** `crawler/api/schemas.py`
 
 **Changes:**
-- Adding new schema classes for metrics, logs, mode, restart, and task retry
-
-**Implementation Notes:**
-- Need to import additional types from pydantic
-- Ensure backward compatibility with existing schemas
+- Added `MetricsResponse` schema
+- Added `LogEntry` and `LogListResponse` schemas
+- Added `ModeResponse` schema
+- Added `RestartRequest` and `RestartResponse` schemas
+- Added `TaskRetryRequest`, `TaskRetryResponse`, `BulkRetryResponse` schemas
+- Added `QueueDetails`, `LpmStatus`, `HealthResponseEnhanced` schemas
 
 **Test Results:**
-- [ ] Import test: pending
-- [ ] Schema validation test: pending
+- [x] Syntax validation: passed (py_compile)
+- [ ] Import test: deferred to Docker testing
+- [ ] Schema validation test: deferred to Docker testing
 
 ---
 
 ### Task 1.2: Create Metrics Route
 
-**Status:** PENDING
+**Status:** COMPLETED
+**Started:** 2026-03-01
+**Completed:** 2026-03-01
 **File:** `crawler/api/routes/metrics.py`
+
+**Changes:**
+- Created `GET /metrics` endpoint
+- Collects CPU, memory from `psutil`
+- Calculates uptime from process boot time
+- Calculates tasks/minute from LPM history (new `get_task_statistics()` method)
+- Returns `MetricsResponse` schema
+
+**Files Modified:**
+- `crawler/api/routes/metrics.py` (new)
+- `crawler/lpm.py` (added `get_task_statistics()` method)
+- `crawler/api/app.py` (registered metrics router, added mode tracking)
+
+**Test Results:**
+- [x] Syntax validation: passed (py_compile)
+- [ ] Functional test: deferred to Docker testing
 
 ---
 

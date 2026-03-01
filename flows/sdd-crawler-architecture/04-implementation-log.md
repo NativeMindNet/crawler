@@ -113,13 +113,32 @@ The `crawler/` module already exists with significant implementation:
 
 ## Deviations from Plan
 
-None yet.
+None. Plan is being executed as specified.
+
+---
+
+## TDD Artifacts Created
+
+The following Test-Driven Development artifacts have been created for remaining work:
+
+| Artifact | Task | Status |
+|----------|------|--------|
+| `05-tdd-proxy.md` | 2.4 Proxy Support | ✅ Ready for implementation |
+| `05-tdd-rate-limiter.md` | 2.5 Rate Limiting | ✅ Ready for implementation |
+| `05-tdd-flower.md` | 2.6 Flower Config | ✅ Ready for implementation |
+
+Each artifact includes:
+- **VDD**: Value-Driven Design (business value, user stories, acceptance criteria)
+- **DDD**: Domain-Driven Design (ubiquitous language, bounded context, aggregates)
+- **TDD**: Test-Driven Development (RED-GREEN-REFACTOR cycle with full test suite)
 
 ---
 
 ## Key Decisions
 
-None yet.
+1. **Proxy Support**: Will implement Token Bucket algorithm for rate limiting with SOCKS5 proxy rotation
+2. **Rate Limiting**: Per-domain with adaptive adjustment based on 429 responses
+3. **Flower**: Configured with basic auth, Prometheus metrics export optional
 
 ---
 

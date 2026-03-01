@@ -288,3 +288,231 @@ class LocalPersistenceManager:
             },
             "discovered_links_unprocessed": await self.link_repo.count_unprocessed(),
         }
+
+    async def get_task_statistics(self) -> Dict[str, float]:
+        """
+        Get task throughput and success rate statistics.
+        
+        Returns:
+            Dictionary with:
+            - tasks_per_minute: Average tasks completed per minute (last hour)
+            - tasks_per_hour: Average tasks completed per hour (last 24h)
+            - success_rate_1h: Success rate in last hour (0.0-1.0)
+            - success_rate_24h: Success rate in last 24h (0.0-1.0)
+        """
+        from crawler.db.connection import DatabaseConnection
+        
+        if not self.db:
+            return {
+                "tasks_per_minute": 0.0,
+                "tasks_per_hour": 0.0,
+                "success_rate_1h": 0.0,
+                "success_rate_24h": 0.0,
+            }
+        
+        # Get task counts for last hour and last 24h
+        now = datetime.utcnow()
+        one_hour_ago = now.replace(minute=0, second=0, microsecond=0)
+        from datetime import timedelta
+        twenty_four_hours_ago = now - timedelta(hours=24)
+        
+        # Count completed and failed tasks in last hour
+        completed_1h = await self.db.fetchone(
+            """
+            SELECT COUNT(*) as count FROM tasks
+            WHERE status = ? AND completed_at >= ?
+            """,
+            (TaskStatus.COMPLETED.value, one_hour_ago.isoformat()),
+        )
+        
+        failed_1h = await self.db.fetchone(
+            """
+            SELECT COUNT(*) as count FROM tasks
+            WHERE status = ? AND completed_at >= ?
+            """,
+            (TaskStatus.FAILED.value, one_hour_ago.isoformat()),
+        )
+        
+        # Count completed and failed tasks in last 24h
+        completed_24h = await self.db.fetchone(
+            """
+            SELECT COUNT(*) as count FROM tasks
+            WHERE status = ? AND completed_at >= ?
+            """,
+            (TaskStatus.COMPLETED.value, twenty_four_hours_ago.isoformat()),
+        )
+        
+        failed_24h = await self.db.fetchone(
+            """
+            SELECT COUNT(*) as count FROM tasks
+            WHERE status = ? AND completed_at >= ?
+            """,
+            (TaskStatus.FAILED.value, twenty_four_hours_ago.isoformat()),
+        )
+        
+        # Calculate rates
+        total_1h = (completed_1h["count"] if completed_1h else 0) + (failed_1h["count"] if failed_1h else 0)
+        total_24h = (completed_24h["count"] if completed_24h else 0) + (failed_24h["count"] if failed_24h else 0)
+        
+        tasks_per_minute = (completed_1h["count"] if completed_1h else 0) / 60.0 if total_1h > 0 else 0.0
+        tasks_per_hour = (completed_24h["count"] if completed_24h else 0) / 24.0 if total_24h > 0 else 0.0
+        
+        success_rate_1h = (completed_1h["count"] if completed_1h else 0) / total_1h if total_1h > 0 else 0.0
+        success_rate_24h = (completed_24h["count"] if completed_24h else 0) / total_24h if total_24h > 0 else 0.0
+        
+        return {
+            "tasks_per_minute": round(tasks_per_minute, 2),
+            "tasks_per_hour": round(tasks_per_hour, 2),
+            "success_rate_1h": round(success_rate_1h, 2),
+            "success_rate_24h": round(success_rate_24h, 2),
+        }
+
+    # === Log Operations ===
+
+    async def add_log_entry(
+        self,
+        level: str,
+        message: str,
+        logger: str = None,
+        context: dict = None,
+    ) -> int:
+        """
+        Add a log entry to the database.
+        
+        Args:
+            level: Log level (DEBUG, INFO, WARN, ERROR, CRITICAL)
+            message: Log message
+            logger: Logger name (e.g., "crawler.worker")
+            context: Additional context data (will be JSON encoded)
+            
+        Returns:
+            ID of the inserted log entry
+        """
+        import json
+        
+        context_json = json.dumps(context) if context else None
+        timestamp = datetime.utcnow().isoformat()
+        
+        row_id = await self.db.execute(
+            """
+            INSERT INTO logs (timestamp, level, message, logger, context_json)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (timestamp, level, message, logger, context_json),
+        )
+        await self.db.commit()
+        return row_id
+
+    async def get_logs(
+        self,
+        level: str = None,
+        search: str = None,
+        page: int = 1,
+        page_size: int = 50,
+        since: datetime = None,
+    ) -> dict:
+        """
+        Get paginated log entries with filters.
+        
+        Args:
+            level: Filter by log level
+            search: Full-text search in message
+            page: Page number (1-based)
+            page_size: Items per page
+            since: Only return logs after this timestamp
+            
+        Returns:
+            Dictionary with entries, total, page, page_size, total_pages
+        """
+        import json
+        
+        # Build WHERE clause
+        conditions = []
+        params = []
+        
+        if level:
+            conditions.append("level = ?")
+            params.append(level)
+        
+        if search:
+            conditions.append("message LIKE ?")
+            params.append(f"%{search}%")
+        
+        if since:
+            conditions.append("timestamp >= ?")
+            params.append(since.isoformat())
+        
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+        
+        # Get total count
+        count_row = await self.db.fetchone(
+            f"SELECT COUNT(*) as count FROM logs WHERE {where_clause}",
+            params,
+        )
+        total = count_row["count"] if count_row else 0
+        
+        # Calculate pagination
+        total_pages = (total + page_size - 1) // page_size
+        offset = (page - 1) * page_size
+        
+        # Get entries
+        rows = await self.db.fetchall(
+            f"""
+            SELECT id, timestamp, level, message, logger, context_json
+            FROM logs
+            WHERE {where_clause}
+            ORDER BY timestamp DESC
+            LIMIT ? OFFSET ?
+            """,
+            params + [page_size, offset],
+        )
+        
+        entries = []
+        for row in rows:
+            entry = {
+                "id": row["id"],
+                "timestamp": datetime.fromisoformat(row["timestamp"]),
+                "level": row["level"],
+                "message": row["message"],
+                "logger": row["logger"],
+                "context": json.loads(row["context_json"]) if row["context_json"] else None,
+            }
+            entries.append(entry)
+        
+        return {
+            "entries": entries,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+        }
+
+    async def cleanup_old_logs(self, days: int = 7) -> int:
+        """
+        Delete logs older than N days.
+        
+        Args:
+            days: Number of days to retain
+            
+        Returns:
+            Number of logs deleted
+        """
+        from datetime import timedelta
+        
+        cutoff = datetime.utcnow() - timedelta(days=days)
+        
+        # Get count before deletion
+        count_row = await self.db.fetchone(
+            "SELECT COUNT(*) as count FROM logs WHERE timestamp < ?",
+            (cutoff.isoformat(),),
+        )
+        deleted_count = count_row["count"] if count_row else 0
+        
+        # Delete old logs
+        await self.db.execute(
+            "DELETE FROM logs WHERE timestamp < ?",
+            (cutoff.isoformat(),),
+        )
+        await self.db.commit()
+        
+        return deleted_count
