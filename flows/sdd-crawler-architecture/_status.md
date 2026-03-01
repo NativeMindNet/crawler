@@ -1,6 +1,6 @@
 # Status: sdd-crawler-architecture
 
-**Current Phase:** PLAN (drafted, awaiting review)
+**Current Phase:** IMPLEMENTATION (in progress)
 **Last Updated:** 2026-03-01
 **Version:** 3.0
 
@@ -23,7 +23,9 @@
 - [x] Plan drafted
 - [x] **v3.0: Celery-only architecture (removed async mode)**
 - [x] **v3.0: Flower integration for monitoring**
-- [ ] Plan approved
+- [x] Plan approved (2026-03-01)
+- [ ] Implementation in progress
+- [ ] Implementation complete
 
 ---
 
@@ -40,8 +42,10 @@
 - [x] v2.2: Added proxy support + rate limiting (2026-03-01)
 - [x] Specifications approved (2026-03-01)
 - [x] Plan drafted (2026-03-01)
-- [x] **v3.0: Removed async mode, Celery-only (2026-03-01)** ← current
-- [ ] Plan approved
+- [x] **v3.0: Removed async mode, Celery-only (2026-03-01)**
+- [x] Plan approved (2026-03-01)
+- [x] Implementation started (2026-03-01) ← current
+- [ ] Implementation complete
 
 ---
 

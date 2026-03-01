@@ -137,3 +137,119 @@ class WebhookTestResponse(BaseModel):
     status_code: Optional[int]
     response_body: Optional[str]
     error: Optional[str]
+
+
+# === Metrics Schemas ===
+
+class MetricsResponse(BaseModel):
+    """System metrics response."""
+    cpu_percent: float
+    memory_percent: float
+    memory_mb: float
+    uptime_seconds: int
+    uptime_human: str
+    tasks_per_minute: float
+    tasks_per_hour: float
+    success_rate_1h: float
+    success_rate_24h: float
+    mode: str
+    timestamp: datetime
+
+
+# === Logs Schemas ===
+
+class LogEntry(BaseModel):
+    """Single log entry."""
+    id: int
+    timestamp: datetime
+    level: str
+    message: str
+    logger: Optional[str]
+    context: Optional[Dict[str, Any]]
+
+
+class LogListResponse(BaseModel):
+    """Log list response."""
+    entries: List[LogEntry]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+# === Mode Schemas ===
+
+class ModeResponse(BaseModel):
+    """Worker mode response."""
+    mode: str
+    mode_description: str
+    broker_url: Optional[str]
+    broker_connected: bool
+    flower_url: Optional[str]
+    flower_available: bool
+    worker_count: Optional[int]
+    worker_names: Optional[List[str]]
+
+
+# === Restart Schemas ===
+
+class RestartRequest(BaseModel):
+    """Restart request body."""
+    reason: Optional[str] = None
+    delay_seconds: int = Field(default=5, ge=0, le=60)
+
+
+class RestartResponse(BaseModel):
+    """Restart response."""
+    status: str
+    reason: Optional[str]
+    delay_seconds: int
+    timestamp: datetime
+
+
+# === Task Retry Schemas ===
+
+class TaskRetryRequest(BaseModel):
+    """Task retry request body."""
+    priority: Optional[int] = None
+
+
+class TaskRetryResponse(BaseModel):
+    """Task retry response."""
+    task_id: str
+    status: str
+    retry_count: int
+    message: str
+
+
+class BulkRetryResponse(BaseModel):
+    """Bulk retry response."""
+    retried_count: int
+    filters: Dict[str, Any]
+    message: str
+
+
+# === Enhanced Health Schema ===
+
+class QueueDetails(BaseModel):
+    """Queue breakdown."""
+    pending: int
+    processing: int
+    failed: int
+
+
+class LpmStatus(BaseModel):
+    """LPM storage status."""
+    db_size_mb: float
+    pending_files: int
+    raw_files: int
+
+
+class HealthResponseEnhanced(BaseModel):
+    """Enhanced health check response."""
+    status: str
+    platform: Optional[str]
+    queue_depth: int
+    queue_details: QueueDetails
+    lpm_status: LpmStatus
+    timestamp: datetime

@@ -1,82 +1,470 @@
-# Requirements: Bulk Ingestion Module
+# Requirements: Bulk Ingestion Module (Celery-based)
 
-**Version:** 0.1
-**Status:** REQUIREMENTS PHASE
-**Last Updated:** 2026-01-31
+**Version:** 1.0
+**Status:** DRAFT
+**Last Updated:** 2026-03-01
 
 ---
 
 ## 1. Goal
-Create a dedicated pipeline for ingesting large, static datasets (Bulk Data) such as Tax Rolls, GIS Shapefiles, and FTP dumps. This module bypasses the web crawling logic (Strategy/Scraper) and feeds directly into the storage layer (LPM).
 
-## 2. User Stories
+Create a dedicated pipeline for ingesting large datasets (Tax Rolls, GIS Shapefiles, FTP dumps) using **Celery groups** for parallel processing, feeding directly into LPM storage.
+
+---
+
+## 2. Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      BULK INGESTION PIPELINE                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                        CLI / API                                 │   │
+│  │  python -m crawler bulk import data.csv --parallel              │   │
+│  └──────────────────────────────┬──────────────────────────────────┘   │
+│                                 │                                       │
+│                                 ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                      File Reader                                 │   │
+│  │  CSV | Excel | Shapefile | GeoJSON | JSON | JSONL               │   │
+│  └──────────────────────────────┬──────────────────────────────────┘   │
+│                                 │                                       │
+│                                 ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                    Mapping Engine                                │   │
+│  │  Profile → Transform → Validate → Normalize                     │   │
+│  └──────────────────────────────┬──────────────────────────────────┘   │
+│                                 │                                       │
+│                                 ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                    Celery Group                                  │   │
+│  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐               │   │
+│  │  │ Batch 1 │ │ Batch 2 │ │ Batch 3 │ │ Batch N │  (parallel)   │   │
+│  │  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘               │   │
+│  └───────┼──────────┼──────────┼──────────┼────────────────────────┘   │
+│          │          │          │          │                            │
+│          └──────────┴─────┬────┴──────────┘                            │
+│                           │                                             │
+│                           ▼                                             │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                      LPM (Storage)                               │   │
+│  │  bulk_jobs | bulk_records | properties | discovered_urls        │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 3. Supported Formats
+
+| Format | Extension | Library | Streaming |
+|--------|-----------|---------|-----------|
+| CSV | `.csv` | pandas/csv | Yes |
+| Excel | `.xlsx`, `.xls` | openpyxl | No |
+| Shapefile | `.shp` | geopandas | No |
+| GeoJSON | `.geojson` | geopandas | Yes |
+| JSON | `.json` | json | No |
+| JSONL | `.jsonl` | json | Yes |
+
+---
+
+## 4. User Stories
 
 ### US-1: GIS Import
 **As a** data engineer
-**I want** to upload a county's GIS Shapefile (.shp) containing 50,000 parcels
-**So that** I can instantly populate the DB with Parcel IDs and geometries without crawling.
+**I want** to import a GIS Shapefile with 50,000 parcels
+**So that** I populate the DB with geometries without crawling
+
+```bash
+python -m crawler bulk import county_parcels.shp \
+  --profile=gis_default \
+  --parallel \
+  --batch-size=1000
+```
+
+---
 
 ### US-2: Tax Roll CSV
 **As a** researcher
-**I want** to import a "Tax Roll Export" CSV file obtained from a county clerk
-**So that** I can bulk-update tax statuses for an entire county.
+**I want** to import a Tax Roll CSV from county clerk
+**So that** I bulk-update tax statuses
 
-### US-3: Format Normalization
-**As a** system
-**I want** to normalize different input columns (e.g., "PIN", "ParcelID", "MapNumber") into a standard `parcel_id`
-**So that** the data is consistent with the rest of the platform.
+```bash
+python -m crawler bulk import tax_roll_2026.csv \
+  --profile=realauction_fl \
+  --queue=default
+```
 
-## 3. Functional Requirements
+---
 
-### FR-0: Targeted Platforms & Coverage
-The module MUST support existing bulk export formats identified:
-- **RealAuction (CSV)**: Priority. Support for "Bid Upload" templates.
-    - Coverage: ~15 FL counties (Columbia, Dixie, etc.), ~15 AZ counties (Apache, Pima, etc.).
-- **Beacon (Schneider Corp)**: Support for "Export" functionality.
-    - Coverage: 90 counties (e.g., FL-Calhoun, KS-Lyon).
-- **qPublic (Schneider Corp)**: Support for "Export" functionality.
-    - Coverage: 229 counties (e.g., FL-Alachua, GA-Chatham).
+### US-3: Auction List Import
+**As a** operator
+**I want** to import auction parcel URLs for scraping
+**So that** I queue them for immediate processing
 
-### FR-1: Supported Formats
-The module MUST support:
-- **CSV / Excel**: Standard tabular data (streaming for large files).
-- **GIS Formats**: Shapefile (.shp), GeoJSON. Support for geometry (latitude/longitude) extraction.
-- **JSON / JSONL**: Bulk JSON exports or line-delimited JSON.
+```bash
+python -m crawler bulk import auction_list.csv \
+  --mode=scrape \
+  --queue=urgent
+```
 
-### FR-2: State Management & Persistence
-The pipeline MUST implement a reliable state tracking system to allow resumption and auditing:
-- **Intermediate Storage**: Use a tiered approach:
-    - `msgpack`: For high-performance binary serialization of large raw datasets.
-    - `pickle`: For complex Python object state (e.g., partial mapping results).
-    - `JSON`: For human-readable configuration and final summaries.
-- **Resumption**: The system MUST track progress at the row/chunk level to allow resuming interrupted jobs.
+---
 
-### FR-3: Mapping Configuration (Profiles)
-- Users MUST be able to define a "Mapping Profile" (JSON) for each source.
-- Profiles should support:
-    - **Direct Mapping**: `source_col` -> `target_field`.
-    - **Constant Values**: Assign a fixed value (e.g., `state` = "FL") if missing in source.
-    - **Transformations**: Simple expressions or pre-defined functions (e.g., `to_decimal`, `to_date`, `clean_parcel_id`).
-    - **Composite Fields**: Concatenate multiple source columns into one target field.
+## 5. Mapping Profiles
 
-### FR-4: Ingestion Pipeline
-1. **Discovery**: Identify files in a source directory.
-2. **Schema Inference (Optional)**: Suggest a mapping based on header similarity.
-3. **Execution**:
-    - Stream source file.
-    - Apply mapping profile.
-    - Validate required fields (`parcel_id`, `county`, `state`).
-    - Upsert to DB using existing `DatabaseConnection` logic.
+```json
+// profiles/realauction_fl.json
+{
+  "name": "realauction_fl",
+  "description": "RealAuction Florida export format",
+  "source_format": "csv",
+  "mappings": {
+    "parcel_id": {"source": "Certificate Number", "transform": "clean_parcel_id"},
+    "address": {"source": "Property Address"},
+    "owner_name": {"source": "Owner Name"},
+    "assessed_value": {"source": "Assessed Value", "transform": "to_decimal"},
+    "tax_amount": {"source": "Face Amount", "transform": "to_decimal"},
+    "auction_date": {"source": "Sale Date", "transform": "to_date"},
+    "state": {"constant": "FL"},
+    "county": {"source": "County"}
+  },
+  "required_fields": ["parcel_id", "county", "state"],
+  "transforms": {
+    "clean_parcel_id": "lambda x: x.strip().upper().replace('-', '')",
+    "to_decimal": "lambda x: Decimal(str(x).replace(',', '').replace('$', ''))",
+    "to_date": "lambda x: datetime.strptime(x, '%m/%d/%Y').date()"
+  }
+}
+```
 
-### FR-5: Idempotency & Upsert
-- Re-importing the same file SHOULD NOT create duplicates.
-- Existing records SHOULD be updated (Upsert) based on `parcel_id`, `county`, `state`.
+---
 
-### FR-6: Error Handling & Logging
-- Log rows that failed validation or transformation.
-- Continue processing the rest of the file on individual row errors.
+## 6. Celery Tasks
 
-## 4. Constraints
-- Must use `LocalPersistenceManager` (LPM) for storage.
-- Must handle large files (stream processing preferred for >1GB files).
-- Must adhere to the tiered state management mandate (Pickle/JSON/Msgpack).
+### Bulk Import Job
+
+```python
+from celery import group, chord
+
+@app.task(bind=True)
+def start_bulk_import(self, file_path: str, profile: str, options: dict):
+    """Start bulk import job."""
+
+    # Create job record
+    job_id = lpm.create_bulk_job(
+        file_path=file_path,
+        profile=profile,
+        status='starting'
+    )
+
+    # Load profile
+    profile_config = load_profile(profile)
+
+    # Read file and create batches
+    reader = get_reader(file_path, profile_config)
+    batches = list(reader.iter_batches(options.get('batch_size', 100)))
+
+    # Update job with total count
+    lpm.update_bulk_job(job_id, total_records=sum(len(b) for b in batches))
+
+    # Create parallel tasks
+    if options.get('parallel', True):
+        # Celery group for parallel processing
+        job = group(
+            process_batch.s(job_id, batch, profile_config)
+            for batch in batches
+        )
+
+        # Chord: parallel batches, then finalize
+        chord(job)(finalize_bulk_job.s(job_id))
+    else:
+        # Sequential processing
+        for batch in batches:
+            process_batch.delay(job_id, batch, profile_config)
+        finalize_bulk_job.delay(job_id)
+
+    return {'job_id': job_id, 'batches': len(batches)}
+```
+
+### Batch Processing
+
+```python
+@app.task(bind=True)
+def process_batch(self, job_id: str, records: list, profile: dict):
+    """Process a batch of records."""
+
+    results = {'success': 0, 'failed': 0, 'errors': []}
+
+    for record in records:
+        try:
+            # Apply mapping
+            mapped = apply_mapping(record, profile['mappings'])
+
+            # Validate
+            validate_record(mapped, profile['required_fields'])
+
+            # Upsert to LPM
+            lpm.upsert_property(mapped)
+
+            results['success'] += 1
+
+        except Exception as e:
+            results['failed'] += 1
+            results['errors'].append({
+                'record': record,
+                'error': str(e)
+            })
+
+    # Update job progress
+    lpm.increment_bulk_job_progress(job_id, results['success'], results['failed'])
+
+    return results
+```
+
+### Finalization
+
+```python
+@app.task
+def finalize_bulk_job(batch_results: list, job_id: str):
+    """Finalize bulk import job."""
+
+    # Aggregate results
+    total_success = sum(r['success'] for r in batch_results)
+    total_failed = sum(r['failed'] for r in batch_results)
+
+    # Update job status
+    lpm.update_bulk_job(
+        job_id,
+        status='completed',
+        success_count=total_success,
+        failed_count=total_failed,
+        completed_at=datetime.now()
+    )
+
+    return {
+        'job_id': job_id,
+        'success': total_success,
+        'failed': total_failed
+    }
+```
+
+---
+
+## 7. Import Modes
+
+| Mode | Description | Output |
+|------|-------------|--------|
+| `data` | Import as property data | LPM properties table |
+| `scrape` | Import URLs for scraping | Celery scrape tasks |
+| `urls` | Import as discovered URLs | LPM discovered_urls table |
+
+```bash
+# Mode: data (default) - import property records
+python -m crawler bulk import tax_roll.csv --mode=data
+
+# Mode: scrape - submit URLs as scrape tasks
+python -m crawler bulk import url_list.csv --mode=scrape --queue=high
+
+# Mode: urls - queue for later scraping
+python -m crawler bulk import parcel_ids.csv --mode=urls
+```
+
+---
+
+## 8. CLI Interface
+
+```bash
+python -m crawler bulk import <file> [options]
+
+Arguments:
+  file                  Input file path
+
+Options:
+  --profile TEXT        Mapping profile name [default: auto-detect]
+  --mode TEXT           Import mode: data|scrape|urls [default: data]
+  --parallel / --sequential
+                        Use parallel processing [default: parallel]
+  --batch-size INT      Records per batch [default: 100]
+  --queue TEXT          Target queue for scrape mode [default: default]
+  --dry-run             Preview without importing
+  --validate-only       Validate file without importing
+  --resume JOB_ID       Resume interrupted job
+
+Examples:
+  # Import CSV with auto-detected profile
+  python -m crawler bulk import data.csv
+
+  # Import GIS with specific profile
+  python -m crawler bulk import parcels.shp --profile=gis_maricopa
+
+  # Import URLs for urgent scraping
+  python -m crawler bulk import auction.csv --mode=scrape --queue=urgent
+
+  # Dry run to preview
+  python -m crawler bulk import data.csv --dry-run
+```
+
+---
+
+## 9. Job Management
+
+```bash
+# List jobs
+python -m crawler bulk jobs
+# ID        STATUS      PROGRESS    FILE
+# job-001   completed   1000/1000   tax_roll.csv
+# job-002   running     450/2000    parcels.shp
+# job-003   failed      0/500       bad_data.csv
+
+# Job details
+python -m crawler bulk status job-002
+# Job ID: job-002
+# Status: running
+# Progress: 450/2000 (22%)
+# Success: 445
+# Failed: 5
+# Errors: [...]
+
+# Resume failed job
+python -m crawler bulk resume job-003
+
+# Cancel running job
+python -m crawler bulk cancel job-002
+```
+
+---
+
+## 10. LPM Schema
+
+```sql
+-- Bulk import jobs
+CREATE TABLE bulk_jobs (
+    job_id TEXT PRIMARY KEY,
+    file_path TEXT,
+    profile TEXT,
+    mode TEXT,
+    status TEXT,           -- starting, running, completed, failed, cancelled
+    total_records INTEGER,
+    processed_records INTEGER DEFAULT 0,
+    success_count INTEGER DEFAULT 0,
+    failed_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP,
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    error TEXT
+);
+
+-- Individual record tracking (for resume)
+CREATE TABLE bulk_records (
+    job_id TEXT,
+    record_index INTEGER,
+    status TEXT,           -- pending, success, failed
+    error TEXT,
+    PRIMARY KEY (job_id, record_index)
+);
+
+-- Discovered URLs for later scraping
+CREATE TABLE discovered_urls (
+    id INTEGER PRIMARY KEY,
+    url TEXT UNIQUE,
+    source TEXT,           -- bulk_import, ripple, sweeper
+    source_job_id TEXT,
+    priority INTEGER,
+    status TEXT,           -- pending, queued, completed
+    created_at TIMESTAMP
+);
+```
+
+---
+
+## 11. Platform-Specific Profiles
+
+### RealAuction (FL, AZ)
+
+```json
+{
+  "name": "realauction_fl",
+  "platforms": ["realauction"],
+  "states": ["FL"],
+  "coverage": "~15 counties",
+  "source_format": "csv",
+  "encoding": "utf-8"
+}
+```
+
+### Beacon (Schneider Corp)
+
+```json
+{
+  "name": "beacon_export",
+  "platforms": ["beacon"],
+  "coverage": "90 counties",
+  "source_format": "csv"
+}
+```
+
+### qPublic (Schneider Corp)
+
+```json
+{
+  "name": "qpublic_export",
+  "platforms": ["qpublic"],
+  "coverage": "229 counties",
+  "source_format": "csv"
+}
+```
+
+---
+
+## 12. Monitoring
+
+### Flower Integration
+
+- View bulk import tasks in Flower
+- Track batch progress
+- Retry failed batches
+
+### Prometheus Metrics
+
+```python
+bulk_import_total = Counter('bulk_import_total', 'Total bulk imports', ['status'])
+bulk_import_records = Counter('bulk_import_records', 'Records processed', ['status'])
+bulk_import_duration = Histogram('bulk_import_duration', 'Import duration')
+```
+
+---
+
+## 13. Implementation Tasks
+
+| Task | Description | Complexity |
+|------|-------------|------------|
+| 1 | Implement file readers (CSV, Excel, GIS, JSON) | Medium |
+| 2 | Implement mapping engine | Medium |
+| 3 | Implement profile loader | Low |
+| 4 | Implement `start_bulk_import` task | Medium |
+| 5 | Implement `process_batch` task | Medium |
+| 6 | Implement `finalize_bulk_job` task | Low |
+| 7 | Add LPM tables (bulk_jobs, bulk_records) | Low |
+| 8 | Implement CLI commands | Medium |
+| 9 | Create default profiles | Low |
+| 10 | Add job resume capability | Medium |
+
+**Total: 10 tasks**
+
+---
+
+## 14. Constraints
+
+- **C-1:** Must use LPM for storage (same as scraped data)
+- **C-2:** Must handle large files (>1GB) via streaming
+- **C-3:** Must support resume after interruption
+- **C-4:** Must be idempotent (upsert, no duplicates)
+
+---
+
+## Approval
+
+- [ ] Reviewed by: [name]
+- [ ] Approved on: [date]

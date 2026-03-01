@@ -1,7 +1,7 @@
 # Implementation Plan: Universal Single-Platform Crawler Architecture
 
-> **Version:** 1.0  
-> **Status:** DRAFT  
+> **Version:** 3.0  
+> **Status:** APPROVED  
 > **Last Updated:** 2026-03-01  
 > **Specifications:** [02-specifications.md](02-specifications.md)
 
@@ -9,10 +9,12 @@
 
 ## Summary
 
-This plan implements the universal single-platform crawler architecture as specified. The implementation is organized into 5 phases:
+This plan implements the universal single-platform crawler architecture as specified. **v3.0: Celery-only architecture** (async mode removed) with Flower monitoring integration.
+
+The implementation is organized into 5 phases:
 
 1. **Foundation** - Core infrastructure (LPM, config loading, storage)
-2. **Core Modules** - Scraper, parser, worker
+2. **Core Modules** - Scraper, parser, Celery worker
 3. **Interfaces** - API (FastAPI) and CLI (Typer)
 4. **Advanced Features** - Bulk ingestion, imagery, webhooks, proxy support
 5. **Testing & Deployment** - Tests, Docker, documentation
@@ -109,14 +111,15 @@ This plan implements the universal single-platform crawler architecture as speci
 - **Verification**: Can extract data using selectors.json
 - **Complexity**: Medium
 
-#### Task 2.3: Worker (Dual Mode)
-- **Description**: Task processing worker (Async and Celery modes)
+#### Task 2.3: Worker (Celery with Flower)
+- **Description**: Celery worker with Flower monitoring
 - **Files**:
   - `crawler/worker.py` - Create
+  - `crawler/celery_app.py` - Create (Celery configuration)
   - `crawler/priority.py` - Create
   - `crawler/discovery.py` - Create
 - **Dependencies**: Task 1.3, Task 2.1, Task 2.2
-- **Verification**: Worker processes queue in priority order
+- **Verification**: Worker processes queue with priority, Flower dashboard shows tasks
 - **Complexity**: High
 
 #### Task 2.4: Proxy Support
@@ -135,6 +138,15 @@ This plan implements the universal single-platform crawler architecture as speci
 - **Dependencies**: Task 2.1
 - **Verification**: Respects configured rate limits per domain
 - **Complexity**: Medium
+
+#### Task 2.6: Flower Monitoring
+- **Description**: Flower dashboard integration
+- **Files**:
+  - `docker-compose.flower.yml` - Create (or add to celery compose)
+  - `config/flower/flower.conf.py` - Create
+- **Dependencies**: Task 2.3
+- **Verification**: Flower dashboard shows Celery tasks, workers, and statistics
+- **Complexity**: Low
 
 ---
 
@@ -246,13 +258,14 @@ This plan implements the universal single-platform crawler architecture as speci
 - **Complexity**: High
 
 #### Task 5.3: Docker Deployment
-- **Description**: Docker Compose configurations
+- **Description**: Docker Compose configurations (Celery + Flower)
 - **Files**:
   - `Dockerfile.crawler` - Create (or update existing)
   - `docker-compose.crawler.yml` - Create
   - `docker-compose.crawler.celery.yml` - Create
-- **Dependencies**: Task 3.1, Task 3.2
-- **Verification**: Can start crawler via docker-compose
+  - `docker-compose.crawler.flower.yml` - Create
+- **Dependencies**: Task 3.1, Task 3.2, Task 2.6
+- **Verification**: Can start crawler + Celery + Flower via docker-compose
 - **Complexity**: Medium
 
 #### Task 5.4: Documentation
@@ -280,12 +293,13 @@ Phase 1: Foundation
 │                 │               │               │
 │                 │               │               └─→ 4.3 Webhooks
 │                 │               │
-└─────────────────┴───────────────┘
+│                 │               └───────────────┴─→ 2.6 Flower
+└─────────────────┴───────────────────────────────────────────────┘
 
 Phase 5: Testing & Deployment (depends on all above)
 ├─ 5.1 Unit Tests
 ├─ 5.2 Integration Tests
-├─ 5.3 Docker
+├─ 5.3 Docker (depends on 2.6 Flower)
 └─ 5.4 Documentation
 ```
 
@@ -295,11 +309,11 @@ Phase 5: Testing & Deployment (depends on all above)
 
 | Directory | Files to Create | Purpose |
 |-----------|-----------------|---------|
-| `crawler/` | 6 | Core modules (lpm, storage, state, worker, priority, discovery, gateway_sync, config_loader, config_validator) |
+| `crawler/` | 7 | Core modules (lpm, storage, state, worker, priority, discovery, gateway_sync, config_loader, config_validator, **celery_app**) |
 | `crawler/models/` | 6 | Data models |
 | `crawler/repositories/` | 4 | Database access layer |
 | `crawler/db/` | 2 | SQLite connection and schema |
-| `crawler/scraper/` | 7 | Web scraping (browser, anti_bot, retry, screenshots, scraper, proxy, proxy_pool, rate_limiter) |
+| `crawler/scraper/` | 8 | Web scraping (browser, anti_bot, retry, screenshots, scraper, proxy, proxy_pool, rate_limiter) |
 | `crawler/parser/` | 6 | HTML parsing |
 | `crawler/bulk/` | 8 | Bulk ingestion pipeline |
 | `crawler/imagery/` | 4 | Image processing |
@@ -308,9 +322,10 @@ Phase 5: Testing & Deployment (depends on all above)
 | `crawler/webhooks/` | 3 | Webhook handling |
 | `crawler/tests/` | 15 | Unit and integration tests |
 | `config/platforms/` | 1 | Platform config directory |
-| Root | 3 | Docker Compose files |
+| `config/flower/` | 1 | Flower configuration |
+| Root | 4 | Docker Compose files (crawler, celery, flower) |
 
-**Total:** ~76 new files
+**Total:** ~80 new files
 
 ---
 
@@ -322,7 +337,8 @@ Phase 5: Testing & Deployment (depends on all above)
 | Proxy rotation complexity | Medium | Medium | Start with single proxy, add pool later |
 | Rate limiting edge cases | Low | Medium | Conservative defaults, configurable |
 | Bulk ingestion performance | Medium | Low | Stream large files, batch inserts |
-| Celery mode setup complexity | Low | Low | Document clearly, provide examples |
+| Celery + Flower setup complexity | Low | Low | Document clearly, provide examples |
+| Redis dependency (Celery broker) | Low | Medium | Use docker-compose, document requirements |
 
 ---
 
