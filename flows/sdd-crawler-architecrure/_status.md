@@ -3,7 +3,7 @@
 > **SDD Flow Status Page**
 > Note: Originally named "sdd-crawler-architecrure" (with typo)
 
-**Current Phase:** ARCHITECTURE (updated)
+**Current Phase:** DRAFTED (pending review)
 **Last Updated:** 2026-03-01
 **Version:** 2.0
 

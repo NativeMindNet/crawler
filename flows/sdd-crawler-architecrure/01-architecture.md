@@ -490,27 +490,45 @@ services:
       - "8003:8000"
 ```
 
-### 6.3 Kubernetes (Auto-scaling)
+### 6.3 Kubernetes Deployment
+
+**Key Principle:** Crawler is **platform-agnostic**. It doesn't know it's "beacon" or "qpublic". Platform identity is defined externally via:
+- K8s labels (for service discovery)
+- Volume subPath (for storage isolation)
+- Config mount (for platform-specific selectors)
 
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: crawler-beacon
+  labels:
+    app: crawler
+    platform: beacon
 spec:
-  replicas: 3
+  replicas: 1                    # One instance per platform
   selector:
     matchLabels:
       app: crawler
       platform: beacon
   template:
+    metadata:
+      labels:
+        app: crawler
+        platform: beacon
     spec:
       containers:
       - name: crawler
-        image: taxlien-crawler:latest
-        env:
-        - name: PLATFORM
-          value: "beacon"
+        image: crawler:latest
+        ports:
+        - containerPort: 8000
+        volumeMounts:
+        - name: data
+          mountPath: /data
+          subPath: beacon        # Platform isolation via subPath
+        - name: config
+          mountPath: /config
+          readOnly: true
         resources:
           requests:
             memory: "512Mi"
@@ -518,13 +536,112 @@ spec:
           limits:
             memory: "2Gi"
             cpu: "2000m"
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: crawler-data-pvc
+      - name: config
+        configMap:
+          name: crawler-beacon-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: crawler-beacon
+  labels:
+    app: crawler
+    platform: beacon
+spec:
+  selector:
+    app: crawler
+    platform: beacon
+  ports:
+  - port: 8000
+    targetPort: 8000
+```
+
+**Service Discovery:** External systems discover crawlers via K8s API:
+```python
+# label_selector="app=crawler"
+# Returns all crawler services with their platform labels
 ```
 
 ---
 
-## 7. API Reference
+## 7. Storage Architecture (Platform-Agnostic)
 
-### 7.1 Task Management
+### 7.1 Core Principle
+
+**Crawler does NOT know about platforms.** It simply writes to `/data`. Platform isolation is achieved externally via volume mounts.
+
+### 7.2 Internal Structure (What Crawler Sees)
+
+```
+/data/                    # Crawler's view - just /data
+├── lpm.db               # Local Persistence Manager (SQLite)
+├── pending/             # Results ready for consumption
+│   └── {task_id}.json
+├── raw/                 # HTML archive (optional)
+│   └── {task_id}.html.gz
+└── images/
+    └── {task_id}/
+```
+
+### 7.3 External Mapping (Volume Mounts)
+
+**Docker Compose:**
+```yaml
+services:
+  crawler-beacon:
+    volumes:
+      - ./data/beacon:/data      # Externally mapped to beacon/
+
+  crawler-qpublic:
+    volumes:
+      - ./data/qpublic:/data     # Externally mapped to qpublic/
+```
+
+**Kubernetes (subPath):**
+```yaml
+volumeMounts:
+  - name: crawler-data
+    mountPath: /data
+    subPath: beacon              # Platform determined by subPath
+```
+
+### 7.4 Result Structure on Shared Storage
+
+```
+/mnt/crawler-data/               # Shared PersistentVolume
+├── beacon/
+│   ├── lpm.db
+│   ├── pending/
+│   │   └── {task_id}.json
+│   ├── raw/
+│   └── images/
+├── qpublic/
+│   └── ...
+└── tyler/
+    └── ...
+```
+
+### 7.5 Consumer Contract
+
+External systems (taxlien-parser) consume results by:
+1. Reading `{platform}/pending/*.json`
+2. Processing and moving/deleting files
+3. Optionally archiving `{platform}/raw/*.html.gz`
+
+This design enables:
+- **OSS standalone use:** User mounts local folder, gets results in `pending/`
+- **Production integration:** Parser reads from shared volume
+- **Platform isolation:** Each crawler writes to isolated subPath
+
+---
+
+## 8. API Reference
+
+### 8.1 Task Management
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -533,14 +650,14 @@ spec:
 | `/tasks/{id}` | GET | Get task status |
 | `/tasks/{id}/result` | GET | Get task result |
 
-### 7.2 Scraping
+### 8.2 Scraping
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/scrape` | POST | Immediate scrape (sync) |
 | `/scrape/batch` | POST | Batch scrape tasks |
 
-### 7.3 Bulk Operations
+### 8.3 Bulk Operations
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -548,7 +665,7 @@ spec:
 | `/bulk/jobs` | GET | List bulk jobs |
 | `/bulk/jobs/{id}` | GET | Get job status |
 
-### 7.4 Health & Config
+### 8.4 Health & Config
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -558,7 +675,7 @@ spec:
 
 ---
 
-## 8. Comparison: Old vs New
+## 9. Comparison: Old vs New
 
 | Aspect | Old (taxlien-parser) | New (Universal Crawler) |
 |--------|---------------------|------------------------|
@@ -574,16 +691,16 @@ spec:
 
 ---
 
-## 9. Next Steps
+## 10. Next Steps
 
 1. **Complete Testing** - Run full test suite
 2. **Docker Build** - Build and push image
 3. **Sample Deployment** - Deploy for beacon platform
-4. **Gateway Integration** - Connect to external orchestrator
+4. **K8s Integration** - Deploy with labels for service discovery
 5. **Documentation** - API docs, deployment guide
 
 ---
 
-**Document Status:** ARCHITECTURE v2.0
+**Document Status:** DRAFTED v2.1
 **Last Updated:** 2026-03-01
-**Author:** Claude (updated from multi-platform to universal single-platform design)
+**Author:** Claude (updated with platform-agnostic storage and K8s discovery)
