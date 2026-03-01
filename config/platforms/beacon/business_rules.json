@@ -1,0 +1,9 @@
+{
+  "default": {
+    "date_format": "MM/DD/YYYY",
+    "currency_clean": true,
+    "owner_normalization": "standard",
+    "encoding": "utf-8"
+  },
+  "overrides": {}
+}

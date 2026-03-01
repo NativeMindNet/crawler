@@ -1,0 +1,10 @@
+{
+  "default": {
+    "date_format": "MM/DD/YYYY",
+    "currency_clean": true,
+    "owner_normalization": "standard",
+    "parcel_id_format": "standard",
+    "encoding": "utf-8"
+  },
+  "overrides": {}
+}

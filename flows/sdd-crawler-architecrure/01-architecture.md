@@ -1,602 +1,589 @@
-# Architecture: Tax Lien Parser Module
+# Architecture: Universal Single-Platform Crawler
 
-**Version:** 1.0
+**Version:** 2.0
 **Status:** ARCHITECTURE DOCUMENT
-**Last Updated:** 2026-02-11
-**Scope:** Comprehensive architecture of the `taxlien-parser` module based on analysis of all existing SDD flows.
+**Last Updated:** 2026-03-01
+**Scope:** Universal crawler architecture - one instance per platform, orchestrated externally.
 
 ---
 
 ## 1. Executive Summary
 
-The **taxlien-parser** module is a distributed, stateless data collection system designed to scrape, parse, and deliver tax lien/deed data from 3,000+ county websites across the United States. The architecture follows a **Gateway-centric** model where workers have minimal dependencies and communicate exclusively through a central API Gateway.
+The **Universal Crawler** is a stateless, single-platform data collection system. Each instance handles **ONE platform** (e.g., Beacon, QPublic). Multiple instances can be deployed externally to cover multiple platforms. The design is **not specific to tax-lien data** - it can be configured for any web scraping domain.
+
+### Architectural Pivot (from v1.0)
+
+| Old Design (taxlien-parser) | New Design (Universal Crawler) |
+|----------------------------|-------------------------------|
+| Multi-platform in one codebase | Single-platform per instance |
+| Tax-lien specific | Domain-agnostic |
+| Platform code embedded | Platform configs as JSON |
+| Celery-only workers | **Dual mode: Async OR Celery** |
+| Complex strategy mix | External orchestration |
 
 ### Key Architectural Principles
 
 | Principle | Description |
 |-----------|-------------|
-| **Stateless Workers** | Workers can run anywhere (local, AWS, DigitalOcean) with zero local state |
-| **Gateway-Centric** | All storage, queue management, and coordination via API Gateway |
-| **Platform Abstraction** | Each county platform (Beacon, QPublic, etc.) is isolated with its own scraper/parser |
-| **Tiered Scraping** | Different HTTP clients for different anti-bot challenges |
-| **Local-First Storage** | Results buffered locally before Gateway sync (resilience) |
-| **Strategy-Driven** | Task selection via pluggable strategies (Freshness, Hotspot, Targeted) |
+| **Single-Platform Focus** | Each instance handles ONE platform, simplifying logic |
+| **External Orchestration** | Multi-platform coordination happens OUTSIDE the crawler |
+| **Config-Driven** | Platform behavior defined in JSON configs, not code |
+| **Docker-First** | Containerized with volume mounts for results |
+| **Dual Interface** | Both API (FastAPI) and CLI (Typer) access |
+| **Dual Worker Mode** | Async (lightweight) OR Celery (parallel) - choose per deployment |
+| **Local Persistence** | SQLite + files for resilience and resume capability |
 
 ---
 
 ## 2. High-Level Architecture
 
 ```
-+====================================================================================+
-|                              TAXLIEN-PARSER ECOSYSTEM                               |
-+====================================================================================+
-
-                                  EXTERNAL SYSTEMS
-    +------------------+     +------------------+     +------------------+
-    |  County Websites |     |  Auction Sites   |     |  Enrichment APIs |
-    |  (3000+ counties)|     | (Bid4Assets,etc) |     | (Legacy, Courts) |
-    +--------+---------+     +--------+---------+     +--------+---------+
-             |                        |                        |
-             +------------------------+------------------------+
-                                      |
-                              [Internet / Tor Proxy]
-                                      |
-+=====================================================================================+
-|                                 WORKER LAYER                                         |
-|  (Distributed, Stateless, Horizontal Scaling)                                        |
-+=====================================================================================+
-|                                                                                      |
-|   +--------------------------+    +--------------------------+                       |
-|   |      WORKER INSTANCE     |    |      WORKER INSTANCE     |    ...N workers      |
-|   |      (Docker Container)  |    |      (Cloud VM)          |                       |
-|   +--------------------------+    +--------------------------+                       |
-|   |                          |    |                          |                       |
-|   | +----------------------+ |    | +----------------------+ |                       |
-|   | |   EXECUTION MODES    | |    | |   EXECUTION MODES    | |                       |
-|   | | - On-Demand (Gateway)| |    | | - On-Demand (Gateway)| |                       |
-|   | | - Standalone (Local) | |    | | - Bulk Ingestion     | |                       |
-|   | +----------------------+ |    | +----------------------+ |                       |
-|   |                          |    |                          |                       |
-|   | +----------------------+ |    | +----------------------+ |                       |
-|   | |   SCRAPER ENGINE     | |    | |   SCRAPER ENGINE     | |                       |
-|   | | Tier 1: aiohttp      | |    | | Tier 2: curl_cffi    | |                       |
-|   | | Tier 2: curl_cffi    | |    | | Tier 3: Playwright   | |                       |
-|   | | Tier 3: Playwright   | |    | | Tier 4: Selenium     | |                       |
-|   | | Tier 4: Selenium     | |    | +----------------------+ |                       |
-|   | +----------------------+ |    |                          |                       |
-|   |                          |    | +----------------------+ |                       |
-|   | +----------------------+ |    | |   PARSER ENGINE      | |                       |
-|   | |   PARSER ENGINE      | |    | | - BeaconParser       | |                       |
-|   | | - BeaconParser       | |    | | - QPublicParser      | |                       |
-|   | | - QPublicParser      | |    | | - FloridaTaxParser   | |                       |
-|   | | - FloridaTaxParser   | |    | | - AuctionParser      | |                       |
-|   | | - PartyParser        | |    | +----------------------+ |                       |
-|   | +----------------------+ |    |                          |                       |
-|   |                          |    | +----------------------+ |                       |
-|   | +----------------------+ |    | | LOCAL PERSISTENCE    | |                       |
-|   | | LOCAL PERSISTENCE    | |    | | (SQLite + Files)     | |                       |
-|   | | (SQLite + Files)     | |    | +----------------------+ |                       |
-|   | +----------------------+ |    +--------------------------+                       |
-|   +--------------------------+                                                       |
-|             |                                                                        |
-|             | Gateway API (HTTPS)                         Tor SOCKS5 (Direct)        |
-|             |                                                    |                   |
-+=====================================================================================+
-              |                                                    |
-              v                                                    v
-+=====================================================================================+
-|                              INFRASTRUCTURE LAYER                                    |
-+=====================================================================================+
-|                                                                                      |
-|   +----------------------------------+        +----------------------------------+   |
-|   |         API GATEWAY              |        |       TOR-SOCKS-PROXY           |   |
-|   |     (api.taxlien.online)         |        |    (tor.taxlien.online)         |   |
-|   +----------------------------------+        +----------------------------------+   |
-|   |                                  |        |                                  |   |
-|   |  INTERNAL API (Workers):         |        |  - Multiple Tor circuits         |   |
-|   |  - GET  /internal/work           |        |  - IP rotation                   |   |
-|   |  - POST /internal/results        |        |  - Ban management                |   |
-|   |  - POST /internal/raw-files      |        |  - Geo-targeting (US)            |   |
-|   |  - POST /internal/tasks/{id}/*   |        |                                  |   |
-|   |  - POST /internal/heartbeat      |        |  NOTE: Gateway has NO knowledge  |   |
-|   |                                  |        |  of proxy - workers connect      |   |
-|   |  EXTERNAL API (Consumers):       |        |  directly to tor-socks-proxy     |   |
-|   |  - GET  /v1/properties/*         |        |                                  |   |
-|   |  - GET  /v1/search/*             |        +----------------------------------+   |
-|   |  - POST /v1/predictions/*        |                                               |
-|   |  - GET  /v1/top-lists/*          |                                               |
-|   |  - GET  /v1/auctions/*           |                                               |
-|   +----------------------------------+                                               |
-|              |                                                                       |
-|              v                                                                       |
-|   +----------------------------------+        +----------------------------------+   |
-|   |         POSTGRESQL               |        |           REDIS                  |   |
-|   |        (Data Store)              |        |       (Queue + Cache)            |   |
-|   +----------------------------------+        +----------------------------------+   |
-|   |  - parcels                       |        |  - Task queues (by priority)     |   |
-|   |  - tax_history                   |        |  - API response cache            |   |
-|   |  - party_documents               |        |  - Rate limit counters           |   |
-|   |  - owner_enrichment              |        |  - Worker heartbeat tracking     |   |
-|   |  - auctions                      |        |                                  |   |
-|   |  - auction_history               |        +----------------------------------+   |
-|   +----------------------------------+                                               |
-|                                                                                      |
-|   +----------------------------------+                                               |
-|   |       RAW FILE STORAGE           |                                               |
-|   |   (/data/raw/ or S3/MinIO)       |                                               |
-|   +----------------------------------+                                               |
-|   |  - Individual HTML files (90d)   |                                               |
-|   |  - Bulk archives (5 years)       |                                               |
-|   |  - Manifest index (SQLite)       |                                               |
-|   +----------------------------------+                                               |
-|                                                                                      |
-+=====================================================================================+
-              |
-              v
-+=====================================================================================+
-|                               CONSUMER LAYER                                         |
-+=====================================================================================+
-|                                                                                      |
-|   +------------------+   +------------------+   +------------------+                 |
-|   | taxlien-flutter  |   |  taxlien-ssr     |   |   taxlien-ml     |                 |
-|   |   (Mobile App)   |   |   (Web Site)     |   |  (Predictions)   |                 |
-|   +------------------+   +------------------+   +------------------+                 |
-|          |                      |                      |                             |
-|          +----------------------+----------------------+                             |
-|                                 |                                                    |
-|                          Gateway /v1/* API                                           |
-|                                                                                      |
-+=====================================================================================+
++===================================================================================+
+|                           EXTERNAL ORCHESTRATION LAYER                            |
++===================================================================================+
+|                                                                                   |
+|   +-------------------+     +-------------------+     +-------------------+       |
+|   |   Gateway API     |     |   Scheduler       |     |   Task Manager    |       |
+|   | (api.taxlien...)  |     | (cron/airflow)    |     | (external system) |       |
+|   +--------+----------+     +--------+----------+     +--------+----------+       |
+|            |                         |                         |                  |
+|            +-------------------------+-------------------------+                  |
+|                                      |                                            |
+|                          Spawn/Configure Instances                                |
+|                                      |                                            |
++===================================================================================+
+                                       |
+                                       v
++===================================================================================+
+|                              CRAWLER INSTANCES                                     |
+|                      (Each handles ONE platform)                                   |
++===================================================================================+
+|                                                                                   |
+|  +------------------------+  +------------------------+  +------------------------+
+|  |   CRAWLER INSTANCE 1   |  |   CRAWLER INSTANCE 2   |  |   CRAWLER INSTANCE N   |
+|  |   Platform: beacon     |  |   Platform: qpublic    |  |   Platform: custom     |
+|  +------------------------+  +------------------------+  +------------------------+
+|  |                        |  |                        |  |                        |
+|  | +--------------------+ |  | +--------------------+ |  | +--------------------+ |
+|  | |  Platform Config   | |  | |  Platform Config   | |  | |  Platform Config   | |
+|  | | - selectors.json   | |  | | - selectors.json   | |  | | - selectors.json   | |
+|  | | - mapping.json     | |  | | - mapping.json     | |  | | - mapping.json     | |
+|  | | - discovery.json   | |  | | - discovery.json   | |  | | - discovery.json   | |
+|  | +--------------------+ |  | +--------------------+ |  | +--------------------+ |
+|  |                        |  |                        |  |                        |
+|  | +--------------------+ |  | +--------------------+ |  | +--------------------+ |
+|  | |   SCRAPER MODULE   | |  | |   SCRAPER MODULE   | |  | |   SCRAPER MODULE   | |
+|  | | - SeleniumBase     | |  | | - SeleniumBase     | |  | | - SeleniumBase     | |
+|  | | - Anti-bot handler | |  | | - Anti-bot handler | |  | | - Anti-bot handler | |
+|  | | - Retry logic      | |  | | - Retry logic      | |  | | - Retry logic      | |
+|  | +--------------------+ |  | +--------------------+ |  | +--------------------+ |
+|  |                        |  |                        |  |                        |
+|  | +--------------------+ |  | +--------------------+ |  | +--------------------+ |
+|  | |   PARSER MODULE    | |  | |   PARSER MODULE    | |  | |   PARSER MODULE    | |
+|  | | - Selector engine  | |  | | - Selector engine  | |  | | - Selector engine  | |
+|  | | - Transformer      | |  | | - Transformer      | |  | | - Transformer      | |
+|  | | - Image extractor  | |  | | - Image extractor  | |  | | - Image extractor  | |
+|  | +--------------------+ |  | +--------------------+ |  | +--------------------+ |
+|  |                        |  |                        |  |                        |
+|  | +--------------------+ |  | +--------------------+ |  | +--------------------+ |
+|  | |  LOCAL PERSISTENCE | |  | |  LOCAL PERSISTENCE | |  | |  LOCAL PERSISTENCE | |
+|  | | - SQLite (tasks)   | |  | | - SQLite (tasks)   | |  | | - SQLite (tasks)   | |
+|  | | - Files (HTML,IMG) | |  | | - Files (HTML,IMG) | |  | | - Files (HTML,IMG) | |
+|  | +--------------------+ |  | +--------------------+ |  | +--------------------+ |
+|  |                        |  |                        |  |                        |
+|  | +--------------------+ |  | +--------------------+ |  | +--------------------+ |
+|  | |  API (FastAPI)     | |  | |  API (FastAPI)     | |  | |  API (FastAPI)     | |
+|  | |  CLI (Typer)       | |  | |  CLI (Typer)       | |  | |  CLI (Typer)       | |
+|  | +--------------------+ |  | +--------------------+ |  | +--------------------+ |
+|  |                        |  |                        |  |                        |
+|  +------------------------+  +------------------------+  +------------------------+
+|            |                          |                          |                |
+|            |  Webhook Notifications   |                          |                |
+|            +-------------+------------+--------------------------+                |
+|                          |                                                        |
++===================================================================================+
+                           |
+                           v
++===================================================================================+
+|                              RESULTS STORAGE                                       |
++===================================================================================+
+|                                                                                   |
+|   +-------------------+     +-------------------+     +-------------------+       |
+|   |  Volume Mount     |     |  S3/MinIO         |     |   Gateway API     |       |
+|   |  /data/results    |     |  (archive)        |     |   (sync)          |       |
+|   +-------------------+     +-------------------+     +-------------------+       |
+|                                                                                   |
++===================================================================================+
 ```
 
 ---
 
 ## 3. Component Catalog
 
-### 3.1 Execution Modes
+### 3.1 Crawler Instance Components
 
-Based on analysis of:
-- `sdd-taxlien-parser-parcel`
-- `sdd-taxlien-parser-standalone`
-- `sdd-taxlien-parser-ondemand`
-- `sdd-taxlien-parser-bulk`
+| Component | Purpose | Technology |
+|-----------|---------|------------|
+| **Config Loader** | Load platform JSON configs | Python dataclasses |
+| **Scraper** | Fetch HTML from websites | SeleniumBase (undetected) |
+| **Parser** | Extract data from HTML | BeautifulSoup + CSS selectors |
+| **LPM** | Task queue + result storage | SQLite + filesystem |
+| **Worker** | Process task queue | Async Python loop |
+| **API** | HTTP interface | FastAPI |
+| **CLI** | Command-line interface | Typer |
+| **Webhook Client** | Notify external systems | HMAC-signed HTTP |
 
-| Mode | Description | Task Source | Result Destination | Use Case |
-|------|-------------|-------------|-------------------|----------|
-| **On-Demand** | Real-time Gateway integration | Gateway `/internal/work` | Gateway `/internal/results` | Production scraping |
-| **Standalone** | Infrastructure-independent | Local JSON/CSV files | Local filesystem | Emergency, benchmarking |
-| **Bulk Ingestion** | Import static datasets | CSV/Shapefile/JSON files | Local + Gateway sync | GIS imports, Tax Rolls |
-
-### 3.2 Scraper Tiers
-
-From `sdd-taxlien-parser-parcel/02-specifications.md`:
-
-| Tier | Technology | Anti-Bot Capability | Platforms | Concurrency |
-|------|------------|---------------------|-----------|-------------|
-| **Tier 1** | aiohttp | None (plain HTTP) | floridatax, actdata, county-taxes | 20+ threads |
-| **Tier 2** | curl_cffi | TLS fingerprint impersonation | Beacon, QPublic | 5-10 threads |
-| **Tier 3** | Playwright | Stealth browser, JS execution | Blocked Beacon sites | 2-5 threads |
-| **Tier 4** | Selenium | Heavy Cloudflare bypass | Custom sites with WAF | 1-2 threads |
-
-### 3.3 Parser Types
-
-Based on existing flows:
-
-| Parser Type | SDD Source | Data Domain | Output Schema |
-|-------------|------------|-------------|---------------|
-| **Parcel Parser** | `sdd-taxlien-parser-parcel` | Property data, tax amounts | `parcels` table |
-| **Party Parser** | `sdd-taxlien-parser-party` | Owners, deeds, probate | `party_documents` table |
-| **Auction Parser** | `sdd-auction-scraper` | Auction dates, registration | `auctions` table |
-| **Enrichment Parser** | `sdd-taxlien-enrichment` | Obituaries, photos, family | `owner_enrichment` table |
-
-### 3.4 Strategy Types
-
-From `sdd-taxlien-parser-strategy`:
-
-| Strategy | Logic | Purpose |
-|----------|-------|---------|
-| **Chronos** | `ORDER BY last_scraped_at ASC` | Freshness maintenance |
-| **Hotspot** | Prioritize user-viewed regions | Reactive to demand |
-| **Targeted** | Filter by `auction_date` proximity | Business deadlines |
-| **Ripple** | Follow graph relations (neighbors, owners) | Context discovery |
-| **Sweeper** | Sequential iteration (`ID > max_id`) | Blind discovery |
-| **Seeded** | Search by keywords/names | Dictionary-based |
-
-### 3.5 Platform Configurations
-
-From `sdd-taxlien-parser-configs`:
+### 3.2 Platform Configuration Files
 
 ```
-platforms/{platform_name}/
-├── scraper.py          # Network logic
-├── parser.py           # Extraction logic
-├── manifest.json       # Rate limits, Cloudflare, Proxy
-├── counties.json       # County-to-Platform mapping
-├── selectors.json      # DOM Selectors (CSS/XPath)
-├── mapping.json        # Field mapping to Standard Schema
-├── business_rules.json # Normalization, date formats
-├── schedule.json       # Update frequency
-└── discovery.json      # URL patterns, ID validation
+config/platforms/{platform_name}/
+├── manifest.json       # Platform metadata, rate limits
+├── selectors.json      # CSS/XPath selectors for data extraction
+├── mapping.json        # Field mapping to output schema
+├── discovery.json      # URL patterns for link discovery
+├── business_rules.json # Data normalization rules
+├── schedule.json       # Crawl frequency settings
+└── counties.json       # (Optional) County-specific overrides
+```
+
+### 3.3 Execution Modes
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| **API Mode** | HTTP endpoints for task management | Production, external integration |
+| **CLI Mode** | Command-line task execution | Development, debugging |
+| **Worker Mode** | Continuous queue processing | Background crawling |
+| **Drain Mode** | Process queue until empty | Batch jobs |
+
+### 3.4 Worker Modes (Async vs Celery)
+
+The crawler supports two worker modes, selectable via `MODE` environment variable:
+
+#### Async Mode (Default)
+
+```
+MODE=async
+
+┌─────────────────────────────────────────┐
+│          CRAWLER INSTANCE               │
+├─────────────────────────────────────────┤
+│  ┌─────────────────────────────────┐    │
+│  │     Async Worker Loop           │    │
+│  │  (single process, asyncio)      │    │
+│  └─────────────────────────────────┘    │
+│                 │                        │
+│                 ▼                        │
+│  ┌─────────────────────────────────┐    │
+│  │     SQLite (task queue)         │    │
+│  └─────────────────────────────────┘    │
+└─────────────────────────────────────────┘
+
+Pros: Simple, no dependencies, fast startup
+Cons: Single-threaded, limited parallelism
+Best for: Low volume, development, simple deployments
+```
+
+#### Celery Mode
+
+```
+MODE=celery
+
+┌─────────────────────────────────────────────────────────────┐
+│                    CRAWLER INSTANCE                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
+│  │   Worker 1  │    │   Worker 2  │    │   Worker N  │     │
+│  │  (scrape)   │    │  (scrape)   │    │  (scrape)   │     │
+│  └──────┬──────┘    └──────┬──────┘    └──────┬──────┘     │
+│         │                  │                  │             │
+│         └──────────────────┼──────────────────┘             │
+│                            │                                │
+│                            ▼                                │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │                    Redis Broker                      │   │
+│  │  Queues: urgent | high | default | low               │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                            │                                │
+│                            ▼                                │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              Flower Dashboard (:5555)                │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+
+Pros: Parallel processing, priority queues, monitoring, retry
+Cons: Requires Redis, more complex deployment
+Best for: High volume, 1000+ tasks, production
+```
+
+#### Mode Selection Guide
+
+| Scenario | Recommended Mode | Reason |
+|----------|-----------------|--------|
+| Development | Async | Fast iteration |
+| < 100 tasks/hour | Async | Overkill to use Celery |
+| 100-1000 tasks/hour | Either | Depends on latency needs |
+| > 1000 tasks/hour | Celery | Parallel processing |
+| Need monitoring | Celery | Flower dashboard |
+| Need priority queues | Celery | Built-in support |
+| Minimal dependencies | Async | No Redis needed |
+
+#### Starting in Each Mode
+
+```bash
+# Async Mode (default)
+docker-compose up -d
+
+# Celery Mode
+docker-compose -f docker-compose.celery.yml up -d
 ```
 
 ---
 
-## 4. Data Flow Diagrams
+## 4. Data Flow
 
-### 4.1 On-Demand Mode Flow
-
-```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                           ON-DEMAND MODE DATA FLOW                                │
-└──────────────────────────────────────────────────────────────────────────────────┘
-
-    ┌─────────┐         ┌─────────────┐         ┌─────────────┐
-    │ Gateway │         │   Worker    │         │ Tor Proxy   │
-    │  (API)  │         │ (Stateless) │         │  (SOCKS5)   │
-    └────┬────┘         └──────┬──────┘         └──────┬──────┘
-         │                     │                       │
-         │  1. GET /internal/work                      │
-         │<────────────────────│                       │
-         │                     │                       │
-         │  2. Return tasks[]  │                       │
-         │─────────────────────>                       │
-         │  (parcel_ids, urls, │                       │
-         │   platform, tier)   │                       │
-         │                     │                       │
-         │                     │  3. SOCKS5 request    │
-         │                     │──────────────────────>│
-         │                     │                       │
-         │                     │                       │ 4. Forward to
-         │                     │                       │    county site
-         │                     │                       │──────────>
-         │                     │                       │
-         │                     │  5. HTML response     │
-         │                     │<──────────────────────│
-         │                     │                       │
-         │                     │  6. Parse HTML        │
-         │                     │  (platform-specific)  │
-         │                     │                       │
-         │                     │  7. Save to Local     │
-         │                     │     SQLite (buffer)   │
-         │                     │                       │
-         │  8. POST /internal/results                  │
-         │<────────────────────│                       │
-         │    (batch of parsed │                       │
-         │     parcel data)    │                       │
-         │                     │                       │
-         │  9. POST /internal/raw-files                │
-         │<────────────────────│                       │
-         │    (compressed HTML)│                       │
-         │                     │                       │
-         │  10. POST /internal/tasks/{id}/complete     │
-         │<────────────────────│                       │
-         │                     │                       │
-    ┌────┴────┐         ┌──────┴──────┐         ┌──────┴──────┐
-    │ Gateway │         │   Worker    │         │ Tor Proxy   │
-    └─────────┘         └─────────────┘         └─────────────┘
-```
-
-### 4.2 Local Persistence Manager (LPM) Flow
-
-From `sdd-taxlien-parser-localstorage`:
+### 4.1 Single Task Flow
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────┐
-│                      LOCAL PERSISTENCE MANAGER (LPM)                              │
+│                              SINGLE TASK DATA FLOW                                │
 └──────────────────────────────────────────────────────────────────────────────────┘
 
-    ┌─────────────┐      ┌─────────────┐      ┌─────────────┐      ┌─────────────┐
-    │   Gateway   │      │  Collector  │      │   Worker    │      │ Sync Service│
-    │    (API)    │      │  (Puller)   │      │  (Scraper)  │      │ (Background)│
-    └──────┬──────┘      └──────┬──────┘      └──────┬──────┘      └──────┬──────┘
-           │                    │                    │                    │
-           │  Every N seconds   │                    │                    │
-           │<───────────────────│                    │                    │
-           │ GET /internal/work │                    │                    │
-           │───────────────────>│                    │                    │
-           │     tasks[]        │                    │                    │
-           │                    │                    │                    │
-           │                    │  persist_tasks()   │                    │
-           │                    │  status=PENDING    │                    │
-           │                    │───────────────────>│                    │
-           │                    │      SQLite        │                    │
-           │                    │                    │                    │
-           │                    │                    │ get_next_pending() │
-           │                    │                    │<───────────────────│
-           │                    │                    │                    │
-           │                    │                    │ scrape()           │
-           │                    │                    │──────┐             │
-           │                    │                    │      │             │
-           │                    │                    │<─────┘             │
-           │                    │                    │                    │
-           │                    │                    │ save_result()      │
-           │                    │                    │ status=COMPLETED   │
-           │                    │                    │ synced=false       │
-           │                    │                    │───────────────────>│
-           │                    │                    │                    │
-           │                    │                    │                    │ Every M sec
-           │                    │                    │                    │ get_unsynced()
-           │                    │                    │<───────────────────│
-           │                    │                    │                    │
-           │ POST /internal/results                  │                    │
-           │<────────────────────────────────────────┼────────────────────│
-           │                    │                    │                    │
-           │                    │                    │ mark_synced()      │
-           │                    │                    │<───────────────────│
-           │                    │                    │                    │
-    ┌──────┴──────┐      ┌──────┴──────┐      ┌──────┴──────┐      ┌──────┴──────┐
-    │   Gateway   │      │  Collector  │      │   Worker    │      │ Sync Service│
-    └─────────────┘      └─────────────┘      └─────────────┘      └─────────────┘
+    ┌─────────────┐         ┌─────────────┐         ┌─────────────┐
+    │   External  │         │   Crawler   │         │   Website   │
+    │   System    │         │  Instance   │         │  (Platform) │
+    └──────┬──────┘         └──────┬──────┘         └──────┬──────┘
+           │                       │                       │
+           │  1. POST /tasks       │                       │
+           │   {url, priority}     │                       │
+           │──────────────────────>│                       │
+           │                       │                       │
+           │  2. Task queued       │                       │
+           │<──────────────────────│                       │
+           │                       │                       │
+           │                       │  3. HTTP GET (with    │
+           │                       │     anti-bot bypass)  │
+           │                       │──────────────────────>│
+           │                       │                       │
+           │                       │  4. HTML Response     │
+           │                       │<──────────────────────│
+           │                       │                       │
+           │                       │  5. Parse HTML        │
+           │                       │  (selectors.json)     │
+           │                       │                       │
+           │                       │  6. Transform data    │
+           │                       │  (mapping.json)       │
+           │                       │                       │
+           │                       │  7. Save to LPM       │
+           │                       │  - result.json        │
+           │                       │  - raw.html           │
+           │                       │  - images/*.jpg       │
+           │                       │                       │
+           │  8. Webhook: task.completed                   │
+           │<──────────────────────│                       │
+           │  {task_id, result}    │                       │
+           │                       │                       │
+    ┌──────┴──────┐         ┌──────┴──────┐         ┌──────┴──────┐
+    │   External  │         │   Crawler   │         │   Website   │
+    │   System    │         │  Instance   │         │  (Platform) │
+    └─────────────┘         └─────────────┘         └─────────────┘
 ```
 
----
-
-## 5. Module Dependencies
+### 4.2 Bulk Ingestion Flow
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────┐
-│                           MODULE DEPENDENCY GRAPH                                 │
+│                              BULK INGESTION FLOW                                  │
 └──────────────────────────────────────────────────────────────────────────────────┘
 
-                              ┌─────────────────────┐
-                              │  sdd-taxlien-gateway│
-                              │  (External Service) │
-                              └──────────┬──────────┘
-                                         │
-                                         │ HTTPS API
-                                         │
-          ┌──────────────────────────────┼──────────────────────────────┐
-          │                              │                              │
-          ▼                              ▼                              ▼
-┌─────────────────────┐      ┌─────────────────────┐      ┌─────────────────────┐
-│ sdd-parser-parcel   │      │ sdd-parser-party    │      │ sdd-auction-scraper │
-│ (Core Parcel Data)  │      │ (Documents/History) │      │ (Auction Metadata)  │
-└──────────┬──────────┘      └──────────┬──────────┘      └──────────┬──────────┘
-           │                            │                            │
-           └────────────────────────────┼────────────────────────────┘
-                                        │
-                                        ▼
-                         ┌──────────────────────────┐
-                         │  SHARED INFRASTRUCTURE   │
-                         └──────────────────────────┘
-                                        │
-          ┌─────────────────────────────┼─────────────────────────────┐
-          │                             │                             │
-          ▼                             ▼                             ▼
-┌─────────────────────┐     ┌─────────────────────┐     ┌─────────────────────┐
-│ sdd-parser-configs  │     │ sdd-parser-strategy │     │ sdd-parser-storage  │
-│ (Platform JSONs)    │     │ (Task Selection)    │     │ (LPM + Raw Files)   │
-└─────────────────────┘     └─────────────────────┘     └─────────────────────┘
-           │                            │                            │
-           │                            │                            │
-           ▼                            ▼                            ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                               EXECUTION MODES                                    │
-├─────────────────────┬─────────────────────┬─────────────────────────────────────┤
-│ sdd-parser-ondemand │ sdd-parser-standalone│       sdd-parser-bulk             │
-│ (Gateway-connected) │ (Infrastructure-free)│       (File imports)              │
-└─────────────────────┴─────────────────────┴─────────────────────────────────────┘
-                                        │
-                                        ▼
-                         ┌──────────────────────────┐
-                         │   sdd-parser-priority    │
-                         │ (Delinquency-based)      │
-                         └──────────────────────────┘
-                                        │
-                                        ▼
-                         ┌──────────────────────────┐
-                         │  sdd-taxlien-enrichment  │
-                         │ (External Data Sources)  │
-                         └──────────────────────────┘
+    Source Files                    Pipeline                      Output
+    ============                    ========                      ======
+
+    +-------------+                                         +-------------+
+    | parcels.csv |                                         |   LPM DB    |
+    +------+------+                                         +------+------+
+           │                                                       │
+           │  ┌────────────────────────────────────────────────────┼─┐
+           │  │                 BULK PIPELINE                      │ │
+           │  │                                                    │ │
+           ▼  │  ┌──────────┐  ┌──────────┐  ┌──────────┐         │ │
+    [CSV Reader]─>│Transform │─>│ Validate │─>│  Upsert  │─────────┼─┘
+           │  │  │(mapping) │  │  (rules) │  │  (dedup) │         │
+           │  │  └──────────┘  └──────────┘  └──────────┘         │
+           │  │                                                    │
+    +-------------+                                                │
+    | shapes.shp  |                                         +------▼------+
+    +------+------+                                         | Discovered  |
+           │  │                                             |   Tasks     |
+           ▼  │                                             +------+------+
+    [GIS Reader]─>│                                                │
+           │  │                                                    ▼
+           │  │                                             Queue for
+    +-------------+                                         Scraping
+    | data.json   |
+    +------+------+
+           │  │
+           ▼  │
+    [JSON Reader]─>│
+              │
+              └────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 6. Directory Structure
+## 5. Module Structure
 
 ```
-taxlien-parser/
-├── flows/                              # SDD specifications
-│   ├── sdd-taxlien-parser-architecture/  # THIS DOCUMENT
-│   ├── sdd-taxlien-parser-parcel/        # Core parcel scraping
-│   ├── sdd-taxlien-parser-party/         # Document/owner parsing
-│   ├── sdd-taxlien-parser-configs/       # Platform configurations
-│   ├── sdd-taxlien-parser-localstorage/  # LPM specifications
-│   ├── sdd-taxlien-parser-strategy/      # Task selection strategies
-│   ├── sdd-taxlien-parser-priority/      # Delinquency prioritization
-│   ├── sdd-taxlien-parser-standalone/    # Offline mode
-│   ├── sdd-taxlien-parser-ondemand/      # Gateway-connected mode
-│   ├── sdd-taxlien-parser-bulk/          # Bulk file ingestion
-│   ├── sdd-auction-scraper/              # Auction metadata
-│   ├── sdd-taxlien-enrichment/           # External enrichment
-│   ├── sdd-platforms-finder/             # Platform discovery
-│   ├── sdd-platforms-sample-collector/   # Sample collection
-│   └── sdd-miw-gift/                     # Arizona auction priority
+crawler/
+├── __init__.py
+├── __main__.py              # Entry point
+├── config_loader.py         # Platform config loading
+├── config_validator.py      # Config schema validation
+├── lpm.py                   # Local Persistence Manager
+├── storage.py               # File storage utilities
+├── state.py                 # State serialization (checkpoint)
+├── worker.py                # Task processing worker
+├── discovery.py             # Link discovery engine
+├── priority.py              # Priority calculation
+├── gateway_sync.py          # Gateway synchronization
 │
-├── worker/                             # Worker entry point
-│   ├── __init__.py
-│   ├── main.py                         # python -m worker.main
-│   ├── runner.py                       # Execution loop
-│   ├── config.py                       # WorkerConfig
-│   └── metrics.py                      # Prometheus metrics
+├── models/                  # Data models
+│   ├── task.py
+│   ├── bulk_job.py
+│   ├── scraped_content.py
+│   ├── parsed_result.py
+│   ├── mapping_profile.py
+│   └── external_links.py
 │
-├── client/                             # Gateway communication
-│   ├── __init__.py
-│   ├── gateway.py                      # GatewayClient
-│   └── models.py                       # Task, Result, etc.
+├── repositories/            # Database access
+│   ├── task_repo.py
+│   ├── bulk_job_repo.py
+│   └── link_repo.py
 │
-├── scrapers/                           # HTTP clients by tier
-│   ├── __init__.py
-│   ├── base.py                         # BaseScraper
-│   ├── factory.py                      # ScraperFactory
-│   ├── tier1/
-│   │   ├── http_scraper.py             # aiohttp
-│   │   ├── floridatax.py
-│   │   └── countytaxes.py
-│   ├── tier2/
-│   │   ├── curl_scraper.py             # curl_cffi
-│   │   ├── beacon.py
-│   │   └── qpublic.py
-│   ├── tier3/
-│   │   └── playwright_scraper.py
-│   └── tier4/
-│       └── selenium_scraper.py
+├── db/                      # Database layer
+│   ├── connection.py
+│   └── schema.py
 │
-├── parsers/                            # HTML extraction
-│   ├── __init__.py
-│   ├── base.py                         # BaseParser
-│   ├── registry.py                     # ParserRegistry
-│   └── platforms/
-│       ├── beacon_parser.py
-│       ├── qpublic_parser.py
-│       ├── floridatax_parser.py
-│       └── ...
+├── scraper/                 # Web scraping
+│   ├── browser.py           # SeleniumBase wrapper
+│   ├── anti_bot.py          # Challenge handlers
+│   ├── retry.py             # Retry with backoff
+│   ├── screenshots.py       # Error screenshots
+│   └── scraper.py           # Main scraper class
 │
-├── platforms/                          # Platform configurations
-│   ├── beacon/
-│   │   ├── manifest.json
-│   │   ├── counties.json
-│   │   ├── selectors.json
-│   │   └── ...
-│   ├── qpublic/
-│   └── ...
+├── parser/                  # HTML parsing
+│   ├── selector_engine.py   # CSS/XPath engine
+│   ├── transformer.py       # Data transformation
+│   ├── validator.py         # Schema validation
+│   ├── parser.py            # Main parser class
+│   ├── image_extractor.py   # Property images
+│   └── external_links.py    # Map link generation
 │
-├── storage/                            # Local persistence
-│   ├── __init__.py
-│   ├── lpm.py                          # LocalPersistenceManager
-│   ├── sync.py                         # Background sync service
-│   └── models.py                       # SQLite models
+├── bulk/                    # Bulk ingestion
+│   ├── readers/
+│   │   ├── csv_reader.py
+│   │   ├── excel_reader.py
+│   │   ├── gis_reader.py
+│   │   └── json_reader.py
+│   ├── pipeline.py
+│   ├── transformer.py
+│   ├── state.py
+│   └── upsert.py
 │
-├── strategies/                         # Task selection
-│   ├── __init__.py
-│   ├── base.py                         # BaseStrategy
-│   ├── mixer.py                        # Strategy mixer
-│   ├── chronos.py                      # Freshness
-│   ├── hotspot.py                      # User signals
-│   ├── targeted.py                     # Auction dates
-│   └── ...
+├── imagery/                 # Image processing
+│   ├── link_generator.py    # External map links
+│   ├── downloader.py        # Image download
+│   ├── service.py           # Imagery coordination
+│   └── analyzer.py          # YOLOv8 placeholder
 │
-├── importers/                          # Bulk ingestion
-│   ├── __init__.py
-│   ├── csv_importer.py
-│   ├── gis_importer.py
-│   └── mapping_profiles/
+├── api/                     # FastAPI layer
+│   ├── app.py
+│   ├── schemas.py
+│   ├── middleware.py
+│   └── routes/
+│       ├── health.py
+│       ├── tasks.py
+│       ├── scrape.py
+│       ├── bulk.py
+│       ├── config.py
+│       └── webhooks.py
 │
-├── configs/                            # Additional config
-│   └── platforms/
+├── cli/                     # Typer CLI
+│   └── commands/
+│       ├── scrape.py
+│       ├── task.py
+│       ├── bulk.py
+│       ├── worker.py
+│       └── config.py
 │
-├── tests/
-│   ├── unit/
-│   ├── integration/
-│   └── fixtures/
+├── webhooks/                # Webhook notifications
+│   ├── models.py
+│   ├── signer.py            # HMAC signing
+│   └── client.py
 │
-├── Dockerfile
-├── docker-compose.dev.yml
-├── requirements.txt
-└── pyproject.toml
+└── tests/
+    ├── conftest.py
+    ├── test_lpm.py
+    ├── test_parser.py
+    ├── test_worker.py
+    ├── test_discovery.py
+    └── test_imagery_service.py
 ```
 
 ---
 
-## 7. Platform Coverage Matrix
+## 6. Deployment Options
 
-Based on `sdd-platforms-finder` and `sdd-platforms-sample-collector`:
+### 6.1 Docker Compose (Single Platform)
 
-| Platform | Tier | Counties | Data Types | Priority |
-|----------|------|----------|------------|----------|
-| **beacon** | 2 | 183 | Assessor, Tax, GIS | HIGH |
-| **qpublic** | 2 | 179 | Assessor, GIS | HIGH |
-| **floridatax** | 1 | 67 | Tax only | HIGH |
-| **county-taxes** | 1 | 30 | Tax only | MEDIUM |
-| **actdata** | 1 | 47 | Assessor, Tax | MEDIUM |
-| **arcountydata** | 1 | 44 | Assessor, Tax, Recorder | MEDIUM |
-| **fidlar** | 1 | 35 | Recorder | LOW |
-| **uslandrecords** | 1 | 26 | Recorder | LOW |
-| **governmax** | 1 | 5 | Tax | LOW |
-| **myfloridacounty** | 1 | 15 | Recorder | LOW |
-| **Bid4Assets** | 1 | 1000+ | Auctions | MEDIUM |
-| **RealAuction** | 1 | 500+ | Auctions | MEDIUM |
+```yaml
+version: '3.8'
+services:
+  crawler:
+    image: taxlien-crawler:latest
+    environment:
+      - PLATFORM=beacon
+      - CONFIG_DIR=/config
+      - DATA_DIR=/data
+      - WEBHOOK_URL=https://api.example.com/webhook
+    volumes:
+      - ./config/platforms/beacon:/config:ro
+      - ./data/beacon:/data
+    ports:
+      - "8000:8000"
+```
 
----
+### 6.2 Multi-Platform (Multiple Instances)
 
-## 8. Priority Queues (MMP)
+```yaml
+version: '3.8'
+services:
+  crawler-beacon:
+    image: taxlien-crawler:latest
+    environment:
+      - PLATFORM=beacon
+    volumes:
+      - ./config/platforms/beacon:/config:ro
+      - ./data/beacon:/data
+    ports:
+      - "8001:8000"
 
-From `sdd-taxlien-parser-parcel`:
+  crawler-qpublic:
+    image: taxlien-crawler:latest
+    environment:
+      - PLATFORM=qpublic
+    volumes:
+      - ./config/platforms/qpublic:/config:ro
+      - ./data/qpublic:/data
+    ports:
+      - "8002:8000"
 
-| Priority | Name | Max Wait | Use Case |
-|----------|------|----------|----------|
-| 1 | **Urgent** | <30s | User viewing parcel |
-| 2 | **High** | <5m | Graph exploration |
-| 3 | **Normal** | <1h | Background refresh |
-| 4 | **Low** | <24h | Batch crawling |
+  crawler-floridatax:
+    image: taxlien-crawler:latest
+    environment:
+      - PLATFORM=floridatax
+    volumes:
+      - ./config/platforms/floridatax:/config:ro
+      - ./data/floridatax:/data
+    ports:
+      - "8003:8000"
+```
 
----
+### 6.3 Kubernetes (Auto-scaling)
 
-## 9. Monitoring & Dashboards
-
-### Required Grafana Panels
-
-1. **Platform Health Matrix** - Per-platform success rate, last OK time
-2. **Proxy Pool Status** - Available, banned, cooldown counts
-3. **Worker Utilization** - Active tasks, throughput, queue depth
-4. **Storage Metrics** - Raw files count, bulk archives, dedupe rate
-5. **Priority Queue Depth** - By priority level, by platform
-
-### Alert Thresholds
-
-| Metric | Warning | Critical |
-|--------|---------|----------|
-| Platform success rate | <90% | <70% |
-| Proxy available | <5 | <3 |
-| Queue depth (urgent) | >100 | >500 |
-| Worker utilization | <30% | <10% |
-| Gateway latency | >500ms | >2s |
-
----
-
-## 10. Development Stages
-
-From `sdd-taxlien-parser-parcel`:
-
-| Stage | Goal | Key Deliverables |
-|-------|------|------------------|
-| **MVP** | Prove scraping works | 3 platforms, 50K parcels, basic monitoring |
-| **MMP** | Enable product features | All TIER 1+2, on-demand API, Grafana |
-| **MLP** | Delight internal users | Full observability, 2M+ parcels |
-| **PF** | Complete system | All platforms, 10M+ parcels, auto-scaling |
-
----
-
-## 11. Cross-References
-
-| SDD | Purpose | Status |
-|-----|---------|--------|
-| `sdd-taxlien-gateway` | API Gateway specifications | Active |
-| `sdd-taxlien-parser-parcel` | Core parcel scraping | Active |
-| `sdd-taxlien-parser-party` | Document/owner parsing | Active |
-| `sdd-taxlien-parser-configs` | Platform configurations | In Progress |
-| `sdd-taxlien-parser-localstorage` | Local persistence | In Progress |
-| `sdd-taxlien-parser-strategy` | Task selection strategies | Draft |
-| `sdd-taxlien-parser-priority` | Delinquency prioritization | Draft |
-| `sdd-taxlien-parser-standalone` | Offline mode | Draft |
-| `sdd-taxlien-parser-ondemand` | Gateway mode | Draft |
-| `sdd-taxlien-parser-bulk` | Bulk ingestion | Draft |
-| `sdd-auction-scraper` | Auction metadata | Draft |
-| `sdd-taxlien-enrichment` | External enrichment | Draft |
-| `sdd-miw-gift` | Arizona auction priority | Active |
-
----
-
-## 12. Next Steps
-
-1. **Consolidate** duplicate SDDs (parcel vs party parsers)
-2. **Implement** LPM as foundation for all modes
-3. **Standardize** platform configurations
-4. **Build** Strategy Mixer with starvation protection
-5. **Deploy** MVP for Arizona Feb 2026 auction
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crawler-beacon
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: crawler
+      platform: beacon
+  template:
+    spec:
+      containers:
+      - name: crawler
+        image: taxlien-crawler:latest
+        env:
+        - name: PLATFORM
+          value: "beacon"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+```
 
 ---
 
-**Document Status:** ARCHITECTURE v1.0
-**Last Updated:** 2026-02-11
-**Author:** Claude (synthesized from existing SDDs)
+## 7. API Reference
+
+### 7.1 Task Management
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/tasks` | POST | Create new scrape task |
+| `/tasks` | GET | List all tasks |
+| `/tasks/{id}` | GET | Get task status |
+| `/tasks/{id}/result` | GET | Get task result |
+
+### 7.2 Scraping
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/scrape` | POST | Immediate scrape (sync) |
+| `/scrape/batch` | POST | Batch scrape tasks |
+
+### 7.3 Bulk Operations
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/bulk/import` | POST | Start bulk import job |
+| `/bulk/jobs` | GET | List bulk jobs |
+| `/bulk/jobs/{id}` | GET | Get job status |
+
+### 7.4 Health & Config
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/config` | GET | Current config |
+| `/config/selectors` | GET | Selector definitions |
+
+---
+
+## 8. Comparison: Old vs New
+
+| Aspect | Old (taxlien-parser) | New (Universal Crawler) |
+|--------|---------------------|------------------------|
+| **Scope** | 27+ platforms in one codebase | 1 platform per instance |
+| **Domain** | Tax-lien specific | Any web data |
+| **Worker** | Celery only | **Async OR Celery** (choose) |
+| **Orchestration** | Internal strategy mixer | External (Gateway/Scheduler) |
+| **Platform code** | Python classes | JSON configs |
+| **Scaling** | Celery worker count | Container instances + optional Celery |
+| **Complexity** | High (multi-platform logic) | Low (single focus) |
+| **Testability** | Difficult (coupled platforms) | Easy (isolated instances) |
+| **Dependencies** | Redis required | Redis optional (Celery mode only) |
+
+---
+
+## 9. Next Steps
+
+1. **Complete Testing** - Run full test suite
+2. **Docker Build** - Build and push image
+3. **Sample Deployment** - Deploy for beacon platform
+4. **Gateway Integration** - Connect to external orchestrator
+5. **Documentation** - API docs, deployment guide
+
+---
+
+**Document Status:** ARCHITECTURE v2.0
+**Last Updated:** 2026-03-01
+**Author:** Claude (updated from multi-platform to universal single-platform design)

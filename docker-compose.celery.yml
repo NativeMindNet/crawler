@@ -1,0 +1,107 @@
+version: '3.8'
+
+# Celery mode docker-compose for Universal Crawler
+# Parallel processing with Redis + Celery + Flower
+#
+# Usage:
+#   docker-compose -f docker-compose.yml -f docker-compose.celery.yml up -d
+#
+# Or standalone:
+#   docker-compose -f docker-compose.celery.yml up -d
+#
+# Access:
+#   - API: http://localhost:8000
+#   - Flower: http://localhost:5555 (admin/flower)
+
+services:
+  # Redis broker
+  redis:
+    image: redis:7-alpine
+    container_name: crawler-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # Crawler API (FastAPI)
+  crawler-api:
+    build: .
+    container_name: crawler-api
+    environment:
+      - PLATFORM=${PLATFORM:-beacon}
+      - CONFIG_DIR=/config
+      - DATA_DIR=/data
+      - REDIS_URL=redis://redis:6379/0
+      - MODE=celery
+      - WEBHOOK_URL=${WEBHOOK_URL:-}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ./config/platforms/${PLATFORM:-beacon}:/config:ro
+      - crawler-data:/data
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: api serve --host 0.0.0.0 --port 8000
+    restart: unless-stopped
+
+  # Celery worker (scraping)
+  crawler-worker:
+    build: .
+    container_name: crawler-worker
+    environment:
+      - PLATFORM=${PLATFORM:-beacon}
+      - CONFIG_DIR=/config
+      - DATA_DIR=/data
+      - REDIS_URL=redis://redis:6379/0
+      - MODE=celery
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - C_FORCE_ROOT=1  # Allow running as root in container
+    volumes:
+      - ./config/platforms/${PLATFORM:-beacon}:/config:ro
+      - crawler-data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: >
+      celery -A crawler.celery_app worker
+      --loglevel=info
+      --concurrency=${CELERY_CONCURRENCY:-4}
+      --queues=urgent,high,default,low
+      --hostname=worker@%h
+    restart: unless-stopped
+    deploy:
+      replicas: ${WORKER_REPLICAS:-1}
+
+  # Flower monitoring
+  flower:
+    image: mher/flower:2.0
+    container_name: crawler-flower
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - FLOWER_BASIC_AUTH=${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-flower}
+      - FLOWER_PORT=5555
+    ports:
+      - "${FLOWER_PORT:-5555}:5555"
+    depends_on:
+      - redis
+      - crawler-worker
+    command: celery --broker=redis://redis:6379/0 flower
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  crawler-data:
+
+networks:
+  default:
+    name: crawler-celery-network

@@ -1,0 +1,9 @@
+{
+  "default": {
+    "url_pattern": "https://qpublic.schneidercorp.com/Application.aspx?AppID={appid}&LayerID={layerid}&PageTypeID=4&KeyValue={parcel_id}",
+    "id_pattern": "^[\\d\\-]+$",
+    "search_endpoint": "https://qpublic.schneidercorp.com/Application.aspx?AppID={appid}",
+    "requires_auth": false
+  },
+  "overrides": {}
+}

@@ -1,0 +1,368 @@
+{
+  "counties": {
+    "in_gibson": {
+      "state": "IN",
+      "county": "Gibson",
+      "tier": 1,
+      "score": "4/4",
+      "priority": 1,
+      "platforms": {
+        "assessor": "beacon",
+        "tax": "beacon",
+        "gis": "beacon",
+        "recorder": "fidlar"
+      },
+      "urls": {
+        "assessor": "https://beacon.schneidercorp.com/Application.aspx?AppID=114&PageTypeID=2",
+        "tax": "https://beacon.schneidercorp.com/Application.aspx?AppID=114&PageTypeID=2",
+        "gis": "https://beacon.schneidercorp.com/Application.aspx?AppID=114&PageTypeID=2",
+        "recorder": "https://tapestry.fidlar.com/Tapestry2/Default.aspx?county=gibson&state=IN"
+      },
+      "params": {
+        "AppID": "114"
+      }
+    },
+    "in_huntington": {
+      "state": "IN",
+      "county": "Huntington",
+      "tier": 1,
+      "score": "4/4",
+      "priority": 1,
+      "platforms": {
+        "assessor": "beacon",
+        "tax": "beacon",
+        "gis": "beacon",
+        "recorder": "fidlar"
+      },
+      "urls": {
+        "assessor": "https://beacon.schneidercorp.com/Application.aspx?AppID=184&PageTypeID=2",
+        "tax": "https://beacon.schneidercorp.com/Application.aspx?AppID=184&PageTypeID=2",
+        "gis": "https://beacon.schneidercorp.com/Application.aspx?AppID=184&PageTypeID=2",
+        "recorder": "https://tapestry.fidlar.com/Tapestry2/Default.aspx?county=huntington&state=IN"
+      },
+      "params": {
+        "AppID": "184"
+      }
+    },
+    "in_crawford": {
+      "state": "IN",
+      "county": "Crawford",
+      "tier": 1,
+      "score": "3/4",
+      "priority": 3,
+      "platforms": {
+        "assessor": "beacon",
+        "tax": "beacon",
+        "gis": "beacon",
+        "recorder": "fidlar"
+      },
+      "urls": {
+        "assessor": "https://beacon.schneidercorp.com/?site=CrawfordCountyIN",
+        "tax": "https://beacon.schneidercorp.com/?site=CrawfordCountyIN",
+        "gis": "https://beacon.schneidercorp.com/?site=CrawfordCountyIN",
+        "recorder": "https://tapestry.fidlar.com/Tapestry2/Default.aspx?county=crawford&state=IN"
+      },
+      "params": {}
+    },
+    "in_decatur": {
+      "state": "IN",
+      "county": "Decatur",
+      "tier": 1,
+      "score": "3/4",
+      "priority": 3,
+      "platforms": {
+        "assessor": "beacon",
+        "tax": "beacon",
+        "gis": "beacon",
+        "recorder": null
+      },
+      "urls": {
+        "assessor": "https://beacon.schneidercorp.com/Application.aspx?AppID=124&PageTypeID=2",
+        "tax": "https://beacon.schneidercorp.com/Application.aspx?AppID=124&PageTypeID=2",
+        "gis": "https://beacon.schneidercorp.com/Application.aspx?AppID=124&PageTypeID=2",
+        "recorder": null
+      },
+      "params": {
+        "AppID": "124"
+      }
+    },
+    "in_hancock": {
+      "state": "IN",
+      "county": "Hancock",
+      "tier": 1,
+      "score": "3/4",
+      "priority": 3,
+      "platforms": {
+        "assessor": "beacon",
+        "tax": "beacon",
+        "gis": "beacon",
+        "recorder": null
+      },
+      "urls": {
+        "assessor": "https://beacon.schneidercorp.com/Application.aspx?AppID=111&PageTypeID=2",
+        "tax": "https://beacon.schneidercorp.com/Application.aspx?AppID=111&PageTypeID=2",
+        "gis": "https://beacon.schneidercorp.com/Application.aspx?AppID=111&PageTypeID=2",
+        "recorder": null
+      },
+      "params": {
+        "AppID": "111"
+      }
+    },
+    "in_henry": {
+      "state": "IN",
+      "county": "Henry",
+      "tier": 1,
+      "score": "3/4",
+      "priority": 3,
+      "platforms": {
+        "assessor": "beacon",
+        "tax": "beacon",
+        "gis": "beacon",
+        "recorder": null
+      },
+      "urls": {
+        "assessor": "https://beacon.schneidercorp.com/Application.aspx?AppID=478&PageTypeID=2",
+        "tax": "https://beacon.schneidercorp.com/Application.aspx?AppID=478&PageTypeID=2",
+        "gis": "https://beacon.schneidercorp.com/Application.aspx?AppID=478&PageTypeID=2",
+        "recorder": null
+      },
+      "params": {
+        "AppID": "478"
+      }
+    },
+    "in_laporte": {
+      "state": "IN",
+      "county": "LaPorte",
+      "tier": 1,
+      "score": "3/4",
+      "priority": 3,
+      "platforms": {
+        "assessor": "beacon",
+        "tax": "beacon",
+        "gis": "beacon",
+        "recorder": null
+      },
+      "urls": {
+        "assessor": "https://beacon.schneidercorp.com/Application.aspx?AppID=205&PageTypeID=2",
+        "tax": "https://beacon.schneidercorp.com/Application.aspx?AppID=205&PageTypeID=2",
+        "gis": "https://beacon.schneidercorp.com/Application.aspx?AppID=205&PageTypeID=2",
+        "recorder": null
+      },
+      "params": {
+        "AppID": "205"
+      }
+    },
+    "in_noble": {
+      "state": "IN",
+      "county": "Noble",
+      "tier": 1,
+      "score": "3/4",
+      "priority": 3,
+      "platforms": {
+        "assessor": "beacon",
+        "tax": "beacon",
+        "gis": "beacon",
+        "recorder": null
+      },
+      "urls": {
+        "assessor": "https://beacon.schneidercorp.com/?site=NobleCountyIN",
+        "tax": "https://beacon.schneidercorp.com/?site=NobleCountyIN",
+        "gis": "https://beacon.schneidercorp.com/?site=NobleCountyIN",
+        "recorder": null
+      },
+      "params": {}
+    },
+    "in_steuben": {
+      "state": "IN",
+      "county": "Steuben",
+      "tier": 1,
+      "score": "3/4",
+      "priority": 3,
+      "platforms": {
+        "assessor": "beacon",
+        "tax": "beacon",
+        "gis": "beacon",
+        "recorder": null
+      },
+      "urls": {
+        "assessor": "https://beacon.schneidercorp.com/?site=SteubenCountyIN",
+        "tax": "https://beacon.schneidercorp.com/?site=SteubenCountyIN",
+        "gis": "https://beacon.schneidercorp.com/?site=SteubenCountyIN",
+        "recorder": null
+      },
+      "params": {}
+    },
+    "in_tippecanoe": {
+      "state": "IN",
+      "county": "Tippecanoe",
+      "tier": 1,
+      "score": "3/4",
+      "priority": 3,
+      "platforms": {
+        "assessor": "beacon",
+        "tax": "beacon",
+        "gis": "beacon",
+        "recorder": null
+      },
+      "urls": {
+        "assessor": "https://beacon.schneidercorp.com/Application.aspx?AppID=578&PageTypeID=2",
+        "tax": "https://beacon.schneidercorp.com/Application.aspx?AppID=578&PageTypeID=2",
+        "gis": "https://beacon.schneidercorp.com/Application.aspx?AppID=578&PageTypeID=2",
+        "recorder": null
+      },
+      "params": {
+        "AppID": "578"
+      }
+    },
+    "ar_crawford": {
+      "state": "AR",
+      "county": "Crawford",
+      "tier": 1,
+      "score": "3/4",
+      "priority": 4,
+      "platforms": {
+        "assessor": "actdata",
+        "tax": "arcountydata",
+        "gis": "beacon",
+        "recorder": null
+      },
+      "urls": {
+        "assessor": "https://www.actdatascout.com/RealProperty/Arkansas/Crawford",
+        "tax": "https://www.arcountydata.com/taxcollector.asp?county=Crawford",
+        "gis": "https://beacon.schneidercorp.com/Application.aspx?AppID=42&PageTypeID=2",
+        "recorder": null
+      },
+      "params": {}
+    },
+    "il_montgomery": {
+      "state": "IL",
+      "county": "Montgomery",
+      "tier": 1,
+      "score": "3/4",
+      "priority": 4,
+      "platforms": {
+        "assessor": "beacon",
+        "tax": null,
+        "gis": "beacon",
+        "recorder": "fidlar"
+      },
+      "urls": {
+        "assessor": "https://beacon.schneidercorp.com/Application.aspx?AppID=503&PageTypeID=2",
+        "tax": null,
+        "gis": "https://beacon.schneidercorp.com/Application.aspx?AppID=503&PageTypeID=2",
+        "recorder": "https://tapestry.fidlar.com/Tapestry2/Default.aspx?county=montgomery&state=IL"
+      },
+      "params": {
+        "AppID": "503"
+      }
+    },
+    "ia_dallas": {
+      "state": "IA",
+      "county": "Dallas",
+      "tier": 1,
+      "score": "3/4",
+      "priority": 4,
+      "platforms": {
+        "assessor": "beacon",
+        "tax": null,
+        "gis": "beacon",
+        "recorder": "fidlar"
+      },
+      "urls": {
+        "assessor": "https://beacon.schneidercorp.com/Application.aspx?AppID=909&PageTypeID=2",
+        "tax": null,
+        "gis": "https://beacon.schneidercorp.com/Application.aspx?AppID=909&PageTypeID=2",
+        "recorder": "https://iadallas.fidlar.com/IADallas/AvaWeb/#/search"
+      },
+      "params": {
+        "AppID": "909"
+      }
+    },
+    "mn_le_sueur": {
+      "state": "MN",
+      "county": "Le Sueur",
+      "tier": 1,
+      "score": "3/4",
+      "priority": 4,
+      "platforms": {
+        "assessor": "beacon",
+        "tax": "beacon",
+        "gis": "beacon",
+        "recorder": null
+      },
+      "urls": {
+        "assessor": "https://beacon.schneidercorp.com/Application.aspx?AppID=248&PageTypeID=2",
+        "tax": "https://beacon.schneidercorp.com/Application.aspx?AppID=248&PageTypeID=2",
+        "gis": "https://beacon.schneidercorp.com/Application.aspx?AppID=248&PageTypeID=2",
+        "recorder": null
+      },
+      "params": {
+        "AppID": "248"
+      }
+    },
+    "mn_rice": {
+      "state": "MN",
+      "county": "Rice",
+      "tier": 1,
+      "score": "3/4",
+      "priority": 4,
+      "platforms": {
+        "assessor": "beacon",
+        "tax": "beacon",
+        "gis": "beacon",
+        "recorder": null
+      },
+      "urls": {
+        "assessor": "https://beacon.schneidercorp.com/Application.aspx?AppID=74&PageTypeID=2",
+        "tax": "https://beacon.schneidercorp.com/Application.aspx?AppID=74&PageTypeID=2",
+        "gis": "https://beacon.schneidercorp.com/Application.aspx?AppID=74&PageTypeID=2",
+        "recorder": null
+      },
+      "params": {
+        "AppID": "74"
+      }
+    },
+    "mn_sherburne": {
+      "state": "MN",
+      "county": "Sherburne",
+      "tier": 1,
+      "score": "3/4",
+      "priority": 4,
+      "platforms": {
+        "assessor": "beacon",
+        "tax": "beacon",
+        "gis": "beacon",
+        "recorder": null
+      },
+      "urls": {
+        "assessor": "https://beacon.schneidercorp.com/Application.aspx?AppID=133&PageTypeID=2",
+        "tax": "https://beacon.schneidercorp.com/Application.aspx?AppID=133&PageTypeID=2",
+        "gis": "https://beacon.schneidercorp.com/Application.aspx?AppID=133&PageTypeID=2",
+        "recorder": null
+      },
+      "params": {
+        "AppID": "133"
+      }
+    },
+    "fl_franklin": {
+      "state": "FL",
+      "county": "Franklin",
+      "tier": 2,
+      "score": null,
+      "priority": null,
+      "platforms": {
+        "assessor": "beacon",
+        "tax": null,
+        "gis": "beacon",
+        "recorder": "myfloridacounty"
+      },
+      "urls": {
+        "assessor": "https://beacon.schneidercorp.com/?site=FranklinCountyFL",
+        "tax": null,
+        "gis": "https://beacon.schneidercorp.com/?site=FranklinCountyFL",
+        "recorder": "https://www.myfloridacounty.com/ori/index.do"
+      },
+      "params": {}
+    }
+  }
+}

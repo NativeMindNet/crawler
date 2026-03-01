@@ -1,0 +1,250 @@
+{
+  "default": {
+    "agree_button": "#ctlBodyPane_ctl00_ctl01_btnAgree",
+    "parcel_id": [
+      "#ctlBodyPane_ctl00_ctl01_lblParcelID",
+      "#ctlBodyPane_ctl00_ctl01_lblParcel",
+      "#ctlBodyPane_ctl00_ctl01_lblAccountNumber",
+      "#ctlBodyPane_ctl00_ctl01_lblPIN",
+      "#ParcelId"
+    ],
+    "owner_name": [
+      "#ctlBodyPane_ctl00_ctl01_sprOwnerName",
+      "#ctlBodyPane_ctl00_ctl01_lnkOwnerName",
+      "#ctlBodyPane_ctl00_ctl01_lblName",
+      "#ctlBodyPane_ctl00_ctl01_lblOwnerName",
+      "#ctlBodyPane_ctl00_ctl01_lblDeededOwner",
+      "#ctlBodyPane_ctl00_ctl01_ctl00_lblName"
+    ],
+    "owner_name_2": [
+      "#ctlBodyPane_ctl00_ctl01_lblOwner2",
+      "#ctlBodyPane_ctl00_ctl01_lblCoOwner"
+    ],
+    "mailing_address": "#ctlBodyPane_ctl00_ctl01_lblMailingAddress",
+    "property_address": [
+      "#ctlBodyPane_ctl00_ctl01_lblSitusAddress",
+      "#ctlBodyPane_ctl00_ctl01_lblPropertyAddress",
+      "#ctlBodyPane_ctl00_ctl01_lblAddress",
+      "#ctlBodyPane_ctl00_ctl01_lblSitus"
+    ],
+    "legal_description": "#ctlBodyPane_ctl00_ctl01_lblLegalDescription",
+    "property_tax_account": [
+      "#ctlBodyPane_ctl00_ctl01_lblPropertyID",
+      "#ctlBodyPane_ctl00_ctl01_lblAccountNumber"
+    ],
+    "alternate_parcel_id": [
+      "#ctlBodyPane_ctl00_ctl01_lblAlternateID",
+      "#ctlBodyPane_ctl00_ctl01_lblAltParcel"
+    ],
+    "property_type": [
+      "#ctlBodyPane_ctl00_ctl01_lblPropertyType",
+      "#ctlBodyPane_ctl00_ctl01_lblUseCode",
+      "#ctlBodyPane_ctl00_ctl01_lblLandUse"
+    ],
+    "property_use_code": [
+      "#ctlBodyPane_ctl00_ctl01_lblUseCode",
+      "#ctlBodyPane_ctl00_ctl01_lblPropertyClass"
+    ],
+    "zoning": [
+      "#ctlBodyPane_ctl00_ctl01_lblZoning",
+      "#ctlBodyPane_ctl00_ctl01_lblZoneCode"
+    ],
+    "subdivision_name": [
+      "#ctlBodyPane_ctl00_ctl01_lblSubdivision",
+      "#ctlBodyPane_ctl00_ctl01_lblPlat"
+    ],
+    "lot_number": [
+      "#ctlBodyPane_ctl00_ctl01_lblLot",
+      "#ctlBodyPane_ctl00_ctl01_lblLotNumber"
+    ],
+    "block_number": [
+      "#ctlBodyPane_ctl00_ctl01_lblBlock",
+      "#ctlBodyPane_ctl00_ctl01_lblBlockNumber"
+    ],
+    "section_township_range": [
+      "#ctlBodyPane_ctl00_ctl01_lblSection",
+      "#ctlBodyPane_ctl00_ctl01_lblTownship",
+      "#ctlBodyPane_ctl00_ctl01_lblSTR"
+    ],
+    "year_built": [
+      "#ctlBodyPane_ctl00_ctl01_lblYearBuilt",
+      "#ctlBodyPane_ctl00_ctl01_lblYrBuilt"
+    ],
+    "effective_year_built": [
+      "#ctlBodyPane_ctl00_ctl01_lblEffectiveYear",
+      "#ctlBodyPane_ctl00_ctl01_lblEffYrBuilt"
+    ],
+    "total_living_area": [
+      "#ctlBodyPane_ctl00_ctl01_lblSquareFeet",
+      "#ctlBodyPane_ctl00_ctl01_lblLivingArea",
+      "#ctlBodyPane_ctl00_ctl01_lblTotalSqFt",
+      "#ctlBodyPane_ctl00_ctl01_lblSqFt"
+    ],
+    "total_building_area": "#ctlBodyPane_ctl00_ctl01_lblBuildingArea",
+    "bedrooms": [
+      "#ctlBodyPane_ctl00_ctl01_lblBedrooms",
+      "#ctlBodyPane_ctl00_ctl01_lblBeds"
+    ],
+    "bathrooms": [
+      "#ctlBodyPane_ctl00_ctl01_lblBathrooms",
+      "#ctlBodyPane_ctl00_ctl01_lblBaths",
+      "#ctlBodyPane_ctl00_ctl01_lblFullBaths"
+    ],
+    "half_bathrooms": "#ctlBodyPane_ctl00_ctl01_lblHalfBaths",
+    "stories": [
+      "#ctlBodyPane_ctl00_ctl01_lblStories",
+      "#ctlBodyPane_ctl00_ctl01_lblFloors"
+    ],
+    "construction_type": [
+      "#ctlBodyPane_ctl00_ctl01_lblConstruction",
+      "#ctlBodyPane_ctl00_ctl01_lblBldgType"
+    ],
+    "exterior_wall": [
+      "#ctlBodyPane_ctl00_ctl01_lblExterior",
+      "#ctlBodyPane_ctl00_ctl01_lblWallType"
+    ],
+    "roof_type": [
+      "#ctlBodyPane_ctl00_ctl01_lblRoof",
+      "#ctlBodyPane_ctl00_ctl01_lblRoofType"
+    ],
+    "foundation": "#ctlBodyPane_ctl00_ctl01_lblFoundation",
+    "heating_type": [
+      "#ctlBodyPane_ctl00_ctl01_lblHeating",
+      "#ctlBodyPane_ctl00_ctl01_lblHeat"
+    ],
+    "cooling_type": [
+      "#ctlBodyPane_ctl00_ctl01_lblCooling",
+      "#ctlBodyPane_ctl00_ctl01_lblAC"
+    ],
+    "garage_type": [
+      "#ctlBodyPane_ctl00_ctl01_lblGarage",
+      "#ctlBodyPane_ctl00_ctl01_lblGarageType"
+    ],
+    "garage_sqft": [
+      "#ctlBodyPane_ctl00_ctl01_lblGarageSqFt",
+      "#ctlBodyPane_ctl00_ctl01_lblGarageArea"
+    ],
+    "pool": "#ctlBodyPane_ctl00_ctl01_lblPool",
+    "land_area": [
+      "#ctlBodyPane_ctl00_ctl01_lblLotSize",
+      "#ctlBodyPane_ctl00_ctl01_lblAcres",
+      "#ctlBodyPane_ctl00_ctl01_lblLandArea"
+    ],
+    "assessed_value": [
+      "#ctlBodyPane_ctl00_ctl01_lblAssessedValue",
+      "#ctlBodyPane_ctl00_ctl01_lblAssessed"
+    ],
+    "just_value": [
+      "#ctlBodyPane_ctl00_ctl01_lblMarketValue",
+      "#ctlBodyPane_ctl00_ctl01_lblJustValue",
+      "#ctlBodyPane_ctl00_ctl01_lblFMV"
+    ],
+    "taxable_value": [
+      "#ctlBodyPane_ctl00_ctl01_lblTaxableValue",
+      "#ctlBodyPane_ctl00_ctl01_lblTaxable"
+    ],
+    "land_value": [
+      "#ctlBodyPane_ctl00_ctl01_lblLandValue",
+      "#ctlBodyPane_ctl00_ctl01_lblLand"
+    ],
+    "building_value": [
+      "#ctlBodyPane_ctl00_ctl01_lblBuildingValue",
+      "#ctlBodyPane_ctl00_ctl01_lblImprovement",
+      "#ctlBodyPane_ctl00_ctl01_lblBuilding"
+    ],
+    "extra_features_value": [
+      "#ctlBodyPane_ctl00_ctl01_lblExtraFeatures",
+      "#ctlBodyPane_ctl00_ctl01_lblOther"
+    ],
+    "agricultural_value": [
+      "#ctlBodyPane_ctl00_ctl01_lblAgValue",
+      "#ctlBodyPane_ctl00_ctl01_lblAgriculture"
+    ],
+    "capped_value": [
+      "#ctlBodyPane_ctl00_ctl01_lblCappedValue",
+      "#ctlBodyPane_ctl00_ctl01_lblSOH"
+    ],
+    "previous_year_value": [
+      "#ctlBodyPane_ctl00_ctl01_lblPriorValue",
+      "#ctlBodyPane_ctl00_ctl01_lblLastYear"
+    ],
+    "tax_year": [
+      "#ctlBodyPane_ctl00_ctl01_lblTaxYear",
+      "#ctlBodyPane_ctl00_ctl01_lblYear"
+    ],
+    "valuation_table": [
+      "#grdValuation",
+      "#tblValuation"
+    ],
+    "tax_table": [
+      "#grdTax",
+      "#tblTax",
+      "#grdTaxHistory"
+    ],
+    "payment_table": [
+      "#gvwPayments",
+      "#grdPayments",
+      "#tblPayments",
+      "#PaymentHistory"
+    ],
+    "sales_table": [
+      "#grdSales",
+      "#grdTransfer",
+      "#tblSales"
+    ],
+    "exemption_table": [
+      "#grdExemption",
+      "#tblExempt"
+    ],
+    "school_district": [
+      "#ctlBodyPane_ctl00_ctl01_lblSchool",
+      "#ctlBodyPane_ctl00_ctl01_lblSchoolDistrict"
+    ],
+    "municipality": [
+      "#ctlBodyPane_ctl00_ctl01_lblMunicipality",
+      "#ctlBodyPane_ctl00_ctl01_lblCity",
+      "#ctlBodyPane_ctl00_ctl01_lblJurisdiction"
+    ],
+    "fire_district": [
+      "#ctlBodyPane_ctl00_ctl01_lblFire",
+      "#ctlBodyPane_ctl00_ctl01_lblFireDistrict"
+    ],
+    "water_district": [
+      "#ctlBodyPane_ctl00_ctl01_lblWater",
+      "#ctlBodyPane_ctl00_ctl01_lblWaterDistrict"
+    ],
+    "flood_zone": [
+      "#ctlBodyPane_ctl00_ctl01_lblFlood",
+      "#ctlBodyPane_ctl00_ctl01_lblFloodZone"
+    ],
+    "commissioner_district": [
+      "#ctlBodyPane_ctl00_ctl01_lblCommissioner",
+      "#ctlBodyPane_ctl00_ctl01_lblDistrict"
+    ],
+    "latitude": [
+      "[data-lat]",
+      "#lat",
+      "#latitude"
+    ],
+    "longitude": [
+      "[data-lng]",
+      "[data-lon]",
+      "#lon",
+      "#longitude"
+    ],
+    "tax_sale_warning": "div[role='alert']",
+    "certificate_number": [
+      "#lblCertificate",
+      "#lblTaxSaleCert"
+    ],
+    "tax_sale_date": [
+      "#lblCertDate",
+      "#lblTaxSaleDate"
+    ]
+  },
+  "overrides": {
+    "in_gibson": {
+      "tax_table": "#grdTax"
+    }
+  }
+}

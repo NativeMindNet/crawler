@@ -1,0 +1,9 @@
+{
+  "default": {
+    "url_pattern": "https://beacon.schneidercorp.com/Application.aspx?AppID={appid}&LayerID={layerid}&PageTypeID=4&ParcelID={parcel_id}",
+    "id_pattern": "^[\\d\\-\\.]+$",
+    "search_endpoint": "https://beacon.schneidercorp.com/Application.aspx?AppID={appid}",
+    "requires_auth": false
+  },
+  "overrides": {}
+}

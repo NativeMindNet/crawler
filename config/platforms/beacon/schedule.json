@@ -1,0 +1,8 @@
+{
+  "default": {
+    "frequency": "monthly",
+    "source": "official",
+    "last_updated": null
+  },
+  "overrides": {}
+}

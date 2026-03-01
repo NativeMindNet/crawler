@@ -1,0 +1,16 @@
+{
+  "platform_id": "qpublic",
+  "engine_type": "stateless",
+  "scraping": {
+    "rate_limit": "5/m",
+    "delay_ms": 15000,
+    "use_proxy": true,
+    "cloudflare": true,
+    "impersonate": "chrome110"
+  },
+  "capabilities": {
+    "has_parcels": true,
+    "has_taxes": false,
+    "has_records": true
+  }
+}

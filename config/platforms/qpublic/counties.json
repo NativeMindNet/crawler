@@ -1,0 +1,148 @@
+{
+  "counties": {
+    "fl_dixie": {
+      "state": "FL",
+      "county": "Dixie",
+      "tier": 1,
+      "score": "3/4",
+      "priority": 2,
+      "platforms": {
+        "assessor": "qpublic",
+        "tax": "floridatax",
+        "gis": "qpublic",
+        "recorder": "myfloridacounty"
+      },
+      "urls": {
+        "assessor": "https://qpublic.schneidercorp.com/Application.aspx?AppID=867&PageTypeID=2",
+        "tax": "https://dixie.floridatax.us/",
+        "gis": "https://qpublic.schneidercorp.com/Application.aspx?AppID=867&PageTypeID=2",
+        "recorder": "https://www.myfloridacounty.com/ori/index.do"
+      },
+      "params": {
+        "AppID": "867"
+      }
+    },
+    "fl_clay": {
+      "state": "FL",
+      "county": "Clay",
+      "tier": 1,
+      "score": "3/4",
+      "priority": 2,
+      "platforms": {
+        "assessor": "qpublic",
+        "tax": "county-taxes",
+        "gis": "qpublic",
+        "recorder": null
+      },
+      "urls": {
+        "assessor": "https://qpublic.schneidercorp.com/Application.aspx?AppID=830&PageTypeID=2",
+        "tax": "https://clay.county-taxes.com/public/search/property_tax",
+        "gis": "https://qpublic.schneidercorp.com/Application.aspx?AppID=830&PageTypeID=2",
+        "recorder": null
+      },
+      "params": {
+        "AppID": "830"
+      }
+    },
+    "fl_glades": {
+      "state": "FL",
+      "county": "Glades",
+      "tier": 1,
+      "score": "3/4",
+      "priority": 2,
+      "platforms": {
+        "assessor": "qpublic",
+        "tax": null,
+        "gis": "qpublic",
+        "recorder": "myfloridacounty"
+      },
+      "urls": {
+        "assessor": "https://qpublic.schneidercorp.com/?site=GladesCountyFL",
+        "tax": null,
+        "gis": "https://qpublic.schneidercorp.com/?site=GladesCountyFL",
+        "recorder": "https://www.myfloridacounty.com/ori/index.do"
+      },
+      "params": {}
+    },
+    "fl_alachua": {
+      "state": "FL",
+      "county": "Alachua",
+      "tier": 2,
+      "score": null,
+      "priority": null,
+      "platforms": {
+        "assessor": "qpublic",
+        "tax": "county-taxes",
+        "gis": "qpublic",
+        "recorder": null
+      },
+      "urls": {
+        "assessor": "https://qpublic.schneidercorp.com/?site=AlachuaCountyFL",
+        "tax": "https://www.alachua.county-taxes.com/public/search/property_tax",
+        "gis": "https://qpublic.schneidercorp.com/?site=AlachuaCountyFL",
+        "recorder": null
+      },
+      "params": {}
+    },
+    "fl_bay": {
+      "state": "FL",
+      "county": "Bay",
+      "tier": 2,
+      "score": null,
+      "priority": null,
+      "platforms": {
+        "assessor": "qpublic",
+        "tax": "county-taxes",
+        "gis": "qpublic",
+        "recorder": null
+      },
+      "urls": {
+        "assessor": "https://qpublic.schneidercorp.com/?site=BayCountyFL",
+        "tax": "https://www.bay.county-taxes.com/public/search/property_tax",
+        "gis": "https://qpublic.schneidercorp.com/?site=BayCountyFL",
+        "recorder": null
+      },
+      "params": {}
+    },
+    "fl_gadsden": {
+      "state": "FL",
+      "county": "Gadsden",
+      "tier": 2,
+      "score": null,
+      "priority": null,
+      "platforms": {
+        "assessor": "qpublic",
+        "tax": "governmax",
+        "gis": "qpublic",
+        "recorder": null
+      },
+      "urls": {
+        "assessor": "https://qpublic.schneidercorp.com/?site=GadsdenCountyFL",
+        "tax": "https://gadsden.governmax.com/collectmax/",
+        "gis": "https://qpublic.schneidercorp.com/?site=GadsdenCountyFL",
+        "recorder": null
+      },
+      "params": {}
+    },
+    "fl_gilchrist": {
+      "state": "FL",
+      "county": "Gilchrist",
+      "tier": 2,
+      "score": null,
+      "priority": null,
+      "platforms": {
+        "assessor": "qpublic",
+        "tax": null,
+        "gis": "qpublic",
+        "recorder": "myfloridacounty"
+      },
+      "urls": {
+        "assessor": "https://qpublic.schneidercorp.com/?site=GilchristCountyFL",
+        "tax": null,
+        "gis": "https://qpublic.schneidercorp.com/?site=GilchristCountyFL",
+        "recorder": "https://www.myfloridacounty.com/ori/index.do"
+      },
+      "params": {}
+    }
+  }
+}
