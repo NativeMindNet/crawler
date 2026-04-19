@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 import logging
 
-from crawler.api.routes import health, tasks, scrape, bulk, config, webhooks, metrics
+from crawler.api.routes import health, tasks, scrape, bulk, config, webhooks, metrics, logs, system
 from crawler.api.middleware import LoggingMiddleware, ErrorMiddleware
 from crawler.lpm import LocalPersistenceManager
 from crawler.config_loader import ConfigLoader
@@ -78,5 +78,7 @@ def create_app(
     app.include_router(config.router, prefix="/config", tags=["Config"])
     app.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"])
     app.include_router(metrics.router, prefix="/metrics", tags=["Metrics"])
+    app.include_router(logs.router, prefix="/logs", tags=["Logs"])
+    app.include_router(system.router, prefix="/system", tags=["System"])
 
     return app

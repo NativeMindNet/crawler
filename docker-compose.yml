@@ -49,3 +49,20 @@ services:
   #     - "8000:8000"
   #   command: api serve --host 0.0.0.0 --port 8000
   #   restart: unless-stopped
+
+  # AppSmith UI for crawler management
+  appsmith:
+    image: appsmith/appsmith-ce:latest
+    container_name: crawler-appsmith
+    ports:
+      - "3000:80"
+    volumes:
+      - ./appsmith-data:/appsmith-stacks
+    environment:
+      - APPSMITH_ENABLE_EMBEDDING=true
+    depends_on:
+      - crawler-qpublic
+    restart: unless-stopped
+    networks:
+      - default
+
