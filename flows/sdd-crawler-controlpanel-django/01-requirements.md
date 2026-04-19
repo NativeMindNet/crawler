@@ -1,123 +1,69 @@
 # Requirements: Crawler Control Panel (Django)
 
-**Version:** 3.0
+**Version:** 4.0
 **Status:** DRAFT
 **Last Updated:** 2026-04-19
 
 ---
 
-## Decision: Django-based Control Panel
+## 1. Goal
 
-Previously, we considered AppSmith but pivoted to Flower + Minimal API. Now, we are standardizing on **Django** for both the API (via Django Ninja) and the Management UI (Control Panel).
+Implement a Django-based management interface for the crawler. This replaces the previous AppSmith proposal with a native Python solution that integrates directly with the crawler's SQLite database (LPM).
 
-**Key shifts:**
-- Replace AppSmith with a lightweight Django Control Panel.
-- Leverage **Django Admin** for rapid data management.
-- Use **Django Templates** or a simple frontend for the operator dashboard.
-- Integrate with **Flower** for real-time task monitoring.
+## 2. Scope
 
----
+### In Scope
+- **Django Admin Integration**: Rapid management of Tasks, Results, and Logs.
+- **Operator Dashboard**: High-level visual metrics (health, throughput, error rates).
+- **Log Viewer**: Web UI for searching and filtering crawler logs.
+- **System Actions**: UI triggers for restarting workers or clearing queues.
 
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                       CRAWLER INSTANCE                           │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐ │
-│  │   Celery    │    │   Celery    │    │      Flower         │ │
-│  │    Beat     │───>│   Workers   │    │   (:5555)           │ │
-│  │ (Scheduler) │    │ (Scrapers)  │    │   Task Monitoring   │ │
-│  └─────────────┘    └──────┬──────┘    └─────────────────────┘ │
-│                            │                                    │
-│         ┌──────────────────┴──────────────────┐                 │
-│         ▼                                     ▼                 │
-│  ┌─────────────┐               ┌──────────────────────────────┐ │
-│  │    Redis    │               │    Django Control Panel      │ │
-│  │   Broker    │               │           (:8000)            │ │
-│  └─────────────┘               ├──────────────────────────────┤ │
-│                                │ - Django Admin (DB Mgmt)     │ │
-│                                │ - Dashboard (Monitoring)     │ │
-│                                │ - Ninja API (Integration)    │ │
-│                                └──────────────────────────────┘ │
-│                                               │                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+### Out of Scope
+- **API Migration**: Handled separately in `sdd-crawler-api-django-ninja`.
+- **Crawler Logic**: Scrapers and parsers remain unchanged.
 
 ---
 
-## Functional Requirements
+## 3. User Stories
 
-### 1. Dashboard (Monitoring)
-- Overview of current crawler state (health, uptime, platform).
-- Real-time (or near real-time) queue depth stats.
-- Links to Flower for deep-dive task debugging.
-
-### 2. Configuration UI
-- View and edit platform configurations.
-- Trigger validation for specific platform configs.
-- Environment variable management overview.
-
-### 3. Task Management (Django Admin)
-- Browse tasks stored in LPM (SQLite).
-- Filter tasks by status, platform, or date.
-- Manually trigger retries or deletion of tasks via Admin Actions.
-
-### 4. Log Viewer
-- Web-based interface to view/search crawler logs.
-- Filtering by log level and time range.
-
-### 5. System Controls
-- Buttons to restart workers/beat (integrated with System API).
-- Toggle between Standalone and On-demand modes (requires restart).
-
----
-
-## User Stories
-
-### US-1: Unified Management
-**As a** crawler operator
-**I want** a single web interface to see health, tasks, and logs
-**So that** I don't have to switch between CLI, logs files, and different UIs.
-
-### US-2: Fast Data Correction
+### US-1: Database Management
 **As a** developer
-**I want** to use Django Admin to quickly fix or delete erroneous tasks in the database
-**So that** I can recover from scraping bugs without writing SQL.
+**I want** to use Django Admin to browse and edit tasks in the LPM database
+**So that** I can fix data issues or re-queue tasks manually without writing SQL.
 
-### US-3: Configuration Tuning
-**As a** system admin
-**I want** to update rate limits or proxy settings via the UI
-**So that** I can respond to platform changes in real-time.
+### US-2: Visual Monitoring
+**As a** crawler operator
+**I want** a dashboard showing current health and scraping progress
+**So that** I can quickly see if the system is running correctly.
 
----
-
-## Implementation Tasks
-
-### Phase 1: Django Integration (3 tasks)
-- [ ] Initialize Django Project with minimal settings.
-- [ ] Configure SQLite (LPM) as the primary database for Django models.
-- [ ] Setup Django Admin for `Task` and `Result` models.
-
-### Phase 2: Control Panel UI (3 tasks)
-- [ ] Create a "Dashboard" home page with health metrics.
-- [ ] Implement Configuration Edit views.
-- [ ] Implement Log Viewer page.
-
-### Phase 3: System Integration (2 tasks)
-- [ ] Integrate with Celery/Flower for worker management.
-- [ ] Implement restart triggers.
+### US-3: Log Analysis
+**As a** developer
+**I want** to search and filter logs through a web interface
+**So that** I can diagnose scraping failures on the go.
 
 ---
 
-## Non-Goals
-- Full-blown user management (Basic Auth or single admin user is enough).
-- Complex analytics (use Grafana/Prometheus for that).
+## 4. Functional Requirements
+
+### FR-1: Managed Database Access
+- Map existing SQLite tables (`standalone_tasks`, `parsed_result`, `logs`) to Django Models.
+- Use `managed = False` where appropriate to avoid interfering with existing table structures if necessary, or provide a clean migration path.
+
+### FR-2: Custom Dashboard
+- A "Home" view showing:
+    - Current mode (Standalone/On-demand).
+    - Success/Failure ratios (last 24h).
+    - Queue depth per platform.
+    - System health (CPU/Memory) - integrated with local metrics.
+
+### FR-3: Action Integration
+- Implement Django Admin "Actions" to:
+    - Bulk retry selected tasks.
+    - Export results to CSV/JSON.
+    - Archive old data.
 
 ---
 
-## Approval
-
-- [ ] Reviewed by: [name]
-- [ ] Approved on: [date]
+## 5. Non-Goals
+- User authentication beyond standard Django Auth.
+- Real-time WebSockets (polling is sufficient for the dashboard).
